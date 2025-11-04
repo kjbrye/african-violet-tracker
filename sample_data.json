@@ -17,7 +17,7 @@
       "waterInterval": 7,
       "fertInterval": 28,
       "notes": "Wick watering; likes bright indirect light.",
-      "photo": ""
+      "photo": "https://images.unsplash.com/photo-1588619478867-1c27481d9322?auto=format&fit=crop&w=400&q=80"
     },
     {
       "id": "cv2",
@@ -36,7 +36,7 @@
       "waterInterval": 6,
       "fertInterval": 21,
       "notes": "Keep temps stable; avoid overwatering.",
-      "photo": ""
+      "photo": "https://images.unsplash.com/photo-1521185496955-15097b20c5fe?auto=format&fit=crop&w=400&q=80"
     }
   ],
   "care": [
