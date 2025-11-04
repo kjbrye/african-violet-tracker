@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>African Violets · Cultivars & Care</title>
+  <title>African Violets · Plants & Care</title>
   <link rel="stylesheet" href="style.css" />
   <meta name="theme-color" content="#2f855a">
 </head>
@@ -12,7 +12,7 @@
     <h1>African Violets</h1>
     <nav>
       <button class="nav-btn active" data-tab="tab-dashboard" aria-controls="tab-dashboard" aria-selected="true">Dashboard</button>
-      <button class="nav-btn" data-tab="tab-cultivars" aria-controls="tab-cultivars" aria-selected="false">Cultivars</button>
+      <button class="nav-btn" data-tab="tab-cultivars" aria-controls="tab-cultivars" aria-selected="false">Plants</button>
       <button class="nav-btn" data-tab="tab-care" aria-controls="tab-care" aria-selected="false">Care Log</button>
       <button class="nav-btn" data-tab="tab-calendar" aria-controls="tab-calendar" aria-selected="false">Calendar</button>
       <button class="nav-btn" data-tab="tab-settings" aria-controls="tab-settings" aria-selected="false">Settings</button>
@@ -64,21 +64,22 @@
       </div>
     </section>
 
-    <!-- CULTIVARS -->
-    <section id="tab-cultivars" class="tab" role="region" aria-label="Cultivars">
+    <!-- PLANTS -->
+    <section id="tab-cultivars" class="tab" role="region" aria-label="Plants">
       <div class="card">
         <div class="toolbar">
-          <input id="cultivarSearch" type="search" placeholder="Search name, blossom, leaf, location…" />
-          <button id="btnAddCultivar">+ Add Cultivar</button>
+          <input id="cultivarSearch" type="search" placeholder="Search cultivar, nickname, blossom, leaf, location…" />
+          <button id="btnAddCultivar">+ Add Plant</button>
         </div>
         <div id="cultivarGrid" class="grid-cards"></div>
       </div>
 
       <dialog id="cultivarDialog">
         <form method="dialog" class="form-grid" id="cultivarForm">
-          <h3 id="cultivarDialogTitle">Add Cultivar</h3>
+          <h3 id="cultivarDialogTitle">Add Plant</h3>
           <input type="hidden" id="cvId" />
-          <label>Name* <input id="cvName" required /></label>
+          <label>Cultivar/Variety Name* <input id="cvCultivarName" required /></label>
+          <label>Nickname <input id="cvNickname" placeholder="Optional" /></label>
           <label>Hybridizer <input id="cvHybridizer" /></label>
           <label>Year <input id="cvYear" type="number" min="1800" max="2100" /></label>
           <label>Blossom Type
