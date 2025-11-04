@@ -2,7 +2,8 @@
   "cultivars": [
     {
       "id": "cv1",
-      "name": "Optimara Little Crystal",
+      "cultivarName": "Optimara Little Crystal",
+      "nickname": "Crystal North",
       "hybridizer": "Optimara",
       "year": "1998",
       "blossom": "Semi-double",
@@ -20,7 +21,8 @@
     },
     {
       "id": "cv2",
-      "name": "EK-Snow Queen",
+      "cultivarName": "EK-Snow Queen",
+      "nickname": "Snowy",
       "hybridizer": "E. Korshunova",
       "year": "2005",
       "blossom": "Double",

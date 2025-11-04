@@ -1,5 +1,5 @@
 
-/* African Violets — Cultivars & Care (vanilla JS, localStorage) */
+/* African Violets — Plants & Care (vanilla JS, localStorage) */
 const $ = (sel, root=document) => root.querySelector(sel);
 const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
 
@@ -9,15 +9,25 @@ let store = loadStore();
 function loadStore(){
   try{
     const raw = localStorage.getItem(STORE_KEY);
-    if(!raw) return { cultivars: [], care: [] };
+    if(!raw) return normalizeStore({ cultivars: [], care: [] });
     const parsed = JSON.parse(raw);
-    parsed.cultivars ??= [];
-    parsed.care ??= [];
-    return parsed;
+    return normalizeStore(parsed);
   }catch(e){
     console.error("Failed to parse store", e);
-    return { cultivars: [], care: [] };
+    return normalizeStore({ cultivars: [], care: [] });
   }
+}
+function normalizeStore(data){
+  const cultivars = Array.isArray(data?.cultivars) ? data.cultivars.map(normalizePlant) : [];
+  const care = Array.isArray(data?.care) ? data.care.map(entry=>({ ...entry })) : [];
+  return { cultivars, care };
+}
+function normalizePlant(plant){
+  const cultivarName = String(plant?.cultivarName ?? plant?.name ?? "").trim();
+  const nickname = String(plant?.nickname ?? "").trim();
+  const normalized = { ...plant, cultivarName, nickname };
+  delete normalized.name;
+  return normalized;
 }
 function saveStore(){
   localStorage.setItem(STORE_KEY, JSON.stringify(store));
@@ -40,6 +50,18 @@ function uid(){ return Math.random().toString(36).slice(2,9) }
 function todayStr(){ return new Date().toISOString().slice(0,10) }
 function toDate(s){ return s ? new Date(s+"T00:00:00") : new Date() }
 function formatDate(s){ return s || "" }
+function plantLabel(plant){
+  if(!plant) return "";
+  if(plant.nickname){
+    return `${plant.nickname} (${plant.cultivarName})`;
+  }
+  return plant.cultivarName;
+}
+function comparePlants(a,b){
+  const cult = (a.cultivarName || "").localeCompare(b.cultivarName || "");
+  if(cult!==0) return cult;
+  return (a.nickname || "").localeCompare(b.nickname || "");
+}
 function download(filename, text) {
   const a = document.createElement('a');
   a.setAttribute('href','data:text/plain;charset=utf-8,' + encodeURIComponent(text));
@@ -56,7 +78,7 @@ function csvEscape(v){
   return s;
 }
 
-/* Cultivars */
+/* Plants */
 const cultivarDialog = $("#cultivarDialog");
 const cultivarForm = $("#cultivarForm");
 $("#btnAddCultivar").addEventListener("click", () => openCultivarDialog());
@@ -71,9 +93,10 @@ $("#saveCultivar").addEventListener("click", (e)=>{
 $("#cvPhoto").addEventListener("change", handlePhoto);
 
 function openCultivarDialog(cv=null){
-  $("#cultivarDialogTitle").textContent = cv ? "Edit Cultivar" : "Add Cultivar";
+  $("#cultivarDialogTitle").textContent = cv ? "Edit Plant" : "Add Plant";
   $("#cvId").value = cv?.id || "";
-  $("#cvName").value = cv?.name || "";
+  $("#cvCultivarName").value = cv?.cultivarName || "";
+  $("#cvNickname").value = cv?.nickname || "";
   $("#cvHybridizer").value = cv?.hybridizer || "";
   $("#cvYear").value = cv?.year || "";
   $("#cvBlossom").value = cv?.blossom || "";
@@ -110,7 +133,8 @@ function saveCultivarFromForm(){
   function finishSave(){
     const data = {
       id,
-      name: get("cvName").trim(),
+      cultivarName: get("cvCultivarName").trim(),
+      nickname: get("cvNickname").trim(),
       hybridizer: get("cvHybridizer").trim(),
       year: get("cvYear"),
       blossom: get("cvBlossom"),
@@ -126,9 +150,10 @@ function saveCultivarFromForm(){
       notes: get("cvNotes").trim(),
       photo: photoData
     };
-    if(!data.name){ alert("Name is required."); return; }
+    if(!data.cultivarName){ alert("Cultivar/Variety Name is required."); return; }
     if(existing){
       Object.assign(existing, data);
+      delete existing.name;
     }else{
       store.cultivars.push(data);
     }
@@ -152,9 +177,9 @@ function renderCultivars(){
   const q = ($("#cultivarSearch").value || "").toLowerCase();
   const list = store.cultivars
     .slice()
-    .sort((a,b)=>a.name.localeCompare(b.name))
+    .sort(comparePlants)
     .filter(c=>{
-      const hay = [c.name,c.blossom,c.color,c.leaf,c.location].join(" ").toLowerCase();
+      const hay = [c.cultivarName,c.nickname,c.blossom,c.color,c.leaf,c.location].join(" ").toLowerCase();
       return hay.includes(q);
     });
 
@@ -162,7 +187,7 @@ function renderCultivars(){
   if(list.length===0){
     const p = document.createElement("p");
     p.className = "empty";
-    p.textContent = "No cultivars yet. Add your first plant.";
+    p.textContent = "No plants yet. Add your first plant.";
     grid.appendChild(p);
     return;
   }
@@ -170,10 +195,13 @@ function renderCultivars(){
     const div = document.createElement("div");
     div.className = "card-plant";
     const img = document.createElement("img");
-    img.alt = c.name;
+    img.alt = plantLabel(c);
     img.src = c.photo || "";
     if(!c.photo){ img.style.opacity = .5; img.style.objectFit = "contain"; img.src = "data:image/svg+xml;utf8,"+encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 90'><rect width='120' height='90' fill='%230b0f14'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='%23aab7c4' font-size='10'>No Photo</text></svg>`); }
-    const h3 = document.createElement("h3"); h3.textContent = c.name;
+    const h3 = document.createElement("h3"); h3.textContent = c.cultivarName;
+    const nickname = document.createElement("div");
+    nickname.className = "muted";
+    nickname.textContent = c.nickname ? `Nickname: ${c.nickname}` : "";
     const meta = document.createElement("div");
     meta.innerHTML = [
       c.blossom ? `<span class="badge">${c.blossom}</span>`:"",
@@ -188,7 +216,7 @@ function renderCultivars(){
     actions.className = "row-actions";
     const edit = document.createElement("button"); edit.textContent = "Edit"; edit.addEventListener("click", ()=>openCultivarDialog(c));
     const del = document.createElement("button"); del.textContent = "Delete"; del.className = "danger"; del.addEventListener("click", ()=>{
-      if(confirm(`Delete ${c.name}? This removes its upcoming reminders but keeps care history.`)){
+      if(confirm(`Delete ${plantLabel(c)}? This removes its upcoming reminders but keeps care history.`)){
         // Remove cultivar
         store.cultivars = store.cultivars.filter(x=>x.id!==c.id);
         // Keep care logs since they serve as history; optionally we could filter by c.id to delete those too.
@@ -202,7 +230,9 @@ function renderCultivars(){
       $("#qcNotes").focus();
     });
     actions.append(edit, care, del);
-    div.append(img, h3, meta, notes, actions);
+    div.append(img, h3);
+    if(c.nickname) div.append(nickname);
+    div.append(meta, notes, actions);
     grid.appendChild(div);
   });
 }
@@ -213,14 +243,15 @@ function renderCareFilters(){
   const sel1 = $("#careFilterCultivar");
   const sel2 = $("#qcCultivar");
   [sel1, sel2].forEach(sel=>{
-    sel.innerHTML = `<option value="">All plants</option>`;
+    const placeholder = sel.id === "qcCultivar" ? "Select a plant" : "All plants";
+    sel.innerHTML = `<option value="">${placeholder}</option>`;
     store.cultivars
       .slice()
-      .sort((a,b)=>a.name.localeCompare(b.name))
+      .sort(comparePlants)
       .forEach(c=>{
         const opt = document.createElement("option");
         opt.value = c.id;
-        opt.textContent = c.name;
+        opt.textContent = plantLabel(c);
         sel.appendChild(opt);
       });
   });
@@ -278,7 +309,7 @@ function renderCareTable(){
     const c = store.cultivars.find(x=>x.id===r.cultivarId);
     tr.innerHTML = `
       <td>${r.date}</td>
-      <td>${c ? c.name : "—"}</td>
+      <td>${c ? plantLabel(c) : "—"}</td>
       <td>${r.action}</td>
       <td>${r.notes || ""}</td>
       <td class="row-actions"></td>
@@ -301,7 +332,7 @@ function renderCareTable(){
 
 $("#btnExportCSV").addEventListener("click", ()=>{
   const rows = [["Date","Plant","Action","Notes"]];
-  const mapName = id => store.cultivars.find(c=>c.id===id)?.name || "";
+  const mapName = id => plantLabel(store.cultivars.find(c=>c.id===id));
   store.care
     .slice()
     .sort((a,b)=>a.date.localeCompare(b.date))
@@ -355,7 +386,7 @@ function renderTasks(){
     const overdue = toDate(it.due) < now;
     if(overdue) li.classList.add("overdue");
     const left = document.createElement("div");
-    left.innerHTML = `<strong>${it.type}</strong> — ${it.plant.name} <span class="badge">${it.due}${overdue?" · overdue":""}</span>`;
+    left.innerHTML = `<strong>${it.type}</strong> — ${plantLabel(it.plant)} <span class="badge">${it.due}${overdue?" · overdue":""}</span>`;
     const right = document.createElement("div");
     right.className = "row-actions";
     const doneBtn = document.createElement("button");
@@ -415,7 +446,7 @@ function renderCalendar(){
     items.forEach(it=>{
       const tag = document.createElement("div");
       tag.className = "tag";
-      tag.textContent = `${it.tag}: ${it.plant.name}`;
+      tag.textContent = `${it.tag}: ${plantLabel(it.plant)}`;
       cell.appendChild(tag);
     });
     cal.appendChild(cell);
@@ -437,7 +468,7 @@ $("#fileImport").addEventListener("change", async (e)=>{
       alert("Invalid backup file.");
       return;
     }
-    store = data;
+    store = normalizeStore(data);
     saveStore();
     alert("Imported successfully.");
   }catch(err){
@@ -447,14 +478,14 @@ $("#fileImport").addEventListener("change", async (e)=>{
   }
 });
 $("#btnErase").addEventListener("click", ()=>{
-  if(confirm("Erase all cultivars and care history? This cannot be undone.")){
+  if(confirm("Erase all plants and care history? This cannot be undone.")){
     store = { cultivars: [], care: [] };
     saveStore();
   }
 });
 $("#btnLoadSample").addEventListener("click", ()=>{
   fetch("sample_data.json").then(r=>r.json()).then(data=>{
-    store = data;
+    store = normalizeStore(data);
     saveStore();
   }).catch(()=> alert("Could not load sample data."));
 });
