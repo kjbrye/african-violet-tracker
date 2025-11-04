@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="card">
+    <h2>Add a new cultivar</h2>
+    <form method="post" class="form-grid">
+      <label for="name">Cultivar name *</label>
+      <input id="name" name="name" type="text" required />
+
+      <label for="flower_color">Flower color</label>
+      <input id="flower_color" name="flower_color" type="text" />
+
+      <label for="leaf_description">Leaf description</label>
+      <input id="leaf_description" name="leaf_description" type="text" />
+
+      <label for="acquisition_date">Acquired on</label>
+      <input id="acquisition_date" name="acquisition_date" type="date" />
+
+      <label for="light_level">Preferred light</label>
+      <input id="light_level" name="light_level" type="text" placeholder="e.g., Bright indirect" />
+
+      <label for="soil_mix">Soil mix</label>
+      <input id="soil_mix" name="soil_mix" type="text" />
+
+      <label for="notes">Notes</label>
+      <textarea id="notes" name="notes" rows="4"></textarea>
+
+      <div class="form-actions">
+        <button class="button" type="submit">Save cultivar</button>
+        <a class="button secondary" href="{{ url_for('index') }}">Cancel</a>
+      </div>
+    </form>
+  </section>
+{% endblock %}

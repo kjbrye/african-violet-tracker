@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="card">
+    <h2>Your cultivars</h2>
+    {% if cultivars %}
+      <ul class="cultivar-list">
+        {% for cultivar, latest in cultivars %}
+          <li class="cultivar">
+            <div class="cultivar-summary">
+              <h3><a href="{{ url_for('show_cultivar', cultivar_id=cultivar.id) }}">{{ cultivar.name }}</a></h3>
+              {% if cultivar.flower_color %}
+                <p><strong>Flower color:</strong> {{ cultivar.flower_color }}</p>
+              {% endif %}
+              {% if cultivar.light_level %}
+                <p><strong>Light level:</strong> {{ cultivar.light_level }}</p>
+              {% endif %}
+              {% if latest %}
+                <p class="latest-care">Last care on {{ latest.strftime('%b %d, %Y') }}</p>
+              {% else %}
+                <p class="latest-care">No care logged yet.</p>
+              {% endif %}
+            </div>
+            <form method="post" action="{{ url_for('delete_cultivar', cultivar_id=cultivar.id) }}" onsubmit="return confirm('Delete this cultivar?');">
+              <button class="link-button danger" type="submit">Delete</button>
+            </form>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>You have not added any cultivars yet. Start by adding one above!</p>
+    {% endif %}
+  </section>
+{% endblock %}

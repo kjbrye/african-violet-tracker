@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="card">
+    <header class="detail-header">
+      <div>
+        <h2>{{ cultivar.name }}</h2>
+        <dl class="detail-list">
+          {% if cultivar.flower_color %}
+            <div>
+              <dt>Flower color</dt>
+              <dd>{{ cultivar.flower_color }}</dd>
+            </div>
+          {% endif %}
+          {% if cultivar.leaf_description %}
+            <div>
+              <dt>Leaf description</dt>
+              <dd>{{ cultivar.leaf_description }}</dd>
+            </div>
+          {% endif %}
+          {% if cultivar.acquisition_date %}
+            <div>
+              <dt>Acquired</dt>
+              <dd>{{ cultivar.acquisition_date.strftime('%b %d, %Y') }}</dd>
+            </div>
+          {% endif %}
+          {% if cultivar.light_level %}
+            <div>
+              <dt>Preferred light</dt>
+              <dd>{{ cultivar.light_level }}</dd>
+            </div>
+          {% endif %}
+          {% if cultivar.soil_mix %}
+            <div>
+              <dt>Soil mix</dt>
+              <dd>{{ cultivar.soil_mix }}</dd>
+            </div>
+          {% endif %}
+          {% if cultivar.notes %}
+            <div>
+              <dt>Notes</dt>
+              <dd>{{ cultivar.notes }}</dd>
+            </div>
+          {% endif %}
+        </dl>
+      </div>
+      <div>
+        <form method="post" action="{{ url_for('delete_cultivar', cultivar_id=cultivar.id) }}" onsubmit="return confirm('Delete this cultivar?');">
+          <button class="button danger" type="submit">Delete cultivar</button>
+        </form>
+      </div>
+    </header>
+
+    <section class="care-section">
+      <h3>Care history</h3>
+      {% if care_logs %}
+        <ul class="care-log">
+          {% for log in care_logs %}
+            <li>
+              <div>
+                <strong>{{ log.action }}</strong>
+                <span class="care-date">{{ log.performed_on.strftime('%b %d, %Y') }}</span>
+                {% if log.notes %}
+                  <p>{{ log.notes }}</p>
+                {% endif %}
+              </div>
+              <form method="post" action="{{ url_for('delete_care_log', log_id=log.id) }}" onsubmit="return confirm('Delete this care log?');">
+                <button class="link-button danger" type="submit">Delete</button>
+              </form>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p>No care tracked yet.</p>
+      {% endif %}
+    </section>
+
+    <section class="care-section">
+      <h3>Add care entry</h3>
+      <form method="post" action="{{ url_for('add_care_log', cultivar_id=cultivar.id) }}" class="form-grid">
+        <label for="performed_on">Date</label>
+        <input id="performed_on" name="performed_on" type="date" value="{{ today.isoformat() }}" />
+
+        <label for="action">Action *</label>
+        <input id="action" name="action" type="text" required placeholder="Watered, fertilized, rotated..." />
+
+        <label for="notes">Notes</label>
+        <textarea id="notes" name="notes" rows="3"></textarea>
+
+        <div class="form-actions">
+          <button class="button" type="submit">Add log</button>
+        </div>
+      </form>
+    </section>
+  </section>
+{% endblock %}
