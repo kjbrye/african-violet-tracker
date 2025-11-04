@@ -29,7 +29,9 @@ function normalizeStore(data){
 function normalizePlant(plant){
   const cultivarName = String(plant?.cultivarName ?? plant?.name ?? "").trim();
   const nickname = String(plant?.nickname ?? "").trim();
-  const normalized = { ...plant, cultivarName, nickname };
+  const fertilizerNpk = String(plant?.fertilizerNpk ?? "").trim();
+  const fertilizerMethod = String(plant?.fertilizerMethod ?? "").trim();
+  const normalized = { ...plant, cultivarName, nickname, fertilizerNpk, fertilizerMethod };
   delete normalized.name;
   return normalized;
 }
@@ -147,6 +149,8 @@ function openCultivarDialog(cv=null){
   $("#cvSource").value = cv?.source || "";
   $("#cvWaterInterval").value = cv?.waterInterval ?? 7;
   $("#cvFertInterval").value = cv?.fertInterval ?? 30;
+  $("#cvFertilizerNpk").value = cv?.fertilizerNpk || "";
+  $("#cvFertilizerMethod").value = cv?.fertilizerMethod || "";
   $("#cvNotes").value = cv?.notes || "";
   $("#cvPhoto").value = "";
   cultivarDialog.showModal();
@@ -185,6 +189,8 @@ function saveCultivarFromForm(){
       source: get("cvSource").trim(),
       waterInterval: Number(get("cvWaterInterval")||7),
       fertInterval: Number(get("cvFertInterval")||30),
+      fertilizerNpk: get("cvFertilizerNpk").trim(),
+      fertilizerMethod: get("cvFertilizerMethod").trim(),
       notes: get("cvNotes").trim(),
       photo: photoData
     };
@@ -272,6 +278,23 @@ function renderCultivars(){
       notes.className = "card-plant-notes";
       notes.textContent = c.notes;
       info.appendChild(notes);
+    }
+    if(c.fertilizerNpk || c.fertilizerMethod){
+      const fert = document.createElement("div");
+      fert.className = "card-plant-fertilizer muted";
+      const label = document.createElement("strong");
+      label.textContent = "Fertilizer:";
+      fert.appendChild(label);
+      const parts = [];
+      if(c.fertilizerNpk) parts.push(`NPK ${c.fertilizerNpk}`);
+      if(c.fertilizerMethod) parts.push(c.fertilizerMethod);
+      const value = document.createElement("span");
+      value.textContent = parts.join(" · ");
+      if(value.textContent){
+        value.insertAdjacentText("afterbegin", " ");
+      }
+      fert.appendChild(value);
+      info.appendChild(fert);
     }
     const actions = document.createElement("div");
     actions.className = "row-actions card-plant-actions";
@@ -408,6 +431,23 @@ function renderPlantProfile(){
   const { src: photoSrc, placeholder } = plantPhoto(plant);
   const photoClasses = ["profile-photo", placeholder ? "placeholder" : ""].filter(Boolean).join(" ");
   const photo = `<img src="${photoSrc}" alt="${escapeHtml(plantLabel(plant))}" class="${photoClasses}" />`;
+  const fertilizerNpk = plant.fertilizerNpk ? escapeHtml(plant.fertilizerNpk) : "";
+  const fertilizerMethod = plant.fertilizerMethod ? escapeHtml(plant.fertilizerMethod) : "";
+  const fertilizerHtml = `
+    <div class="profile-fertilizer">
+      <h4>Fertilizer plan</h4>
+      <dl class="profile-grid profile-fertilizer-grid">
+        <div>
+          <dt>NPK</dt>
+          <dd>${fertilizerNpk || "—"}</dd>
+        </div>
+        <div>
+          <dt>Application</dt>
+          <dd>${fertilizerMethod || "—"}</dd>
+        </div>
+      </dl>
+    </div>
+  `;
 
   content.innerHTML = `
     <div class="profile-header">
@@ -425,6 +465,7 @@ function renderPlantProfile(){
         ${infoHtml}
       </dl>
     </div>
+    ${fertilizerHtml}
     <div class="profile-care">
       <h4>Care history</h4>
       ${careHtml}

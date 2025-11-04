@@ -69,6 +69,8 @@ dialog::backdrop{background:rgba(30,58,47,.4);backdrop-filter:blur(4px)}
 .card-plant-meta{display:flex;flex-wrap:wrap;gap:.35rem}
 .card-plant-meta .badge{margin:0}
 .card-plant-notes{font-size:.9rem;color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.card-plant-fertilizer{font-size:.85rem;display:flex;align-items:center;gap:.35rem;margin-top:.2rem;flex-wrap:wrap}
+.card-plant-fertilizer strong{font-size:.85rem;color:var(--text);font-weight:600}
 .card-plant-actions{grid-area:actions;display:flex;flex-wrap:wrap;gap:.5rem}
 .card-plant.card-plant--list{grid-template-columns:150px 1fr auto;grid-template-areas:"photo info actions";align-items:center}
 .card-plant.card-plant--list .card-plant-actions{justify-content:flex-end}
@@ -114,6 +116,9 @@ footer{padding:1.5rem;color:var(--muted);text-align:center;border-top:1px solid 
 .profile-care-list strong{display:block;font-size:1rem;margin-bottom:.15rem}
 .profile-care-list .muted{font-size:.85rem}
 .profile-empty{color:var(--muted);font-style:italic}
+.profile-fertilizer{padding:1.2rem;border:1px solid var(--border);border-radius:1rem;background:var(--surface-2);box-shadow:0 6px 12px rgba(30,58,47,.07)}
+.profile-fertilizer h4{margin:0 0 .75rem 0}
+.profile-fertilizer-grid{margin:0}
 
 @media(max-width:600px){
   .profile-top{flex-direction:column;align-items:flex-start}
