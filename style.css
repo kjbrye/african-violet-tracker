@@ -15,8 +15,10 @@
 *{box-sizing:border-box}
 html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font:18px/1.6 "Inter", "Segoe UI", -apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif}
 body{min-height:100vh;background:radial-gradient(circle at top,var(--surface-2),transparent 55%),var(--bg);}
-header{display:flex;gap:1.25rem;align-items:center;justify-content:space-between;padding:1.5rem 2rem;border-bottom:1px solid var(--border);background:linear-gradient(180deg,var(--surface),var(--surface-2));box-shadow:0 8px 20px rgba(80,120,96,.15)}
-h1{margin:0;font-size:1.5rem;letter-spacing:.5px}
+header{display:flex;gap:1.25rem;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:1.5rem 2rem;border-bottom:1px solid var(--border);background:linear-gradient(180deg,var(--surface),var(--surface-2));box-shadow:0 8px 20px rgba(80,120,96,.15)}
+.site-brand{display:flex;align-items:center;gap:1rem;min-width:0}
+.site-logo{width:56px;height:56px;object-fit:contain;filter:drop-shadow(0 6px 12px rgba(47,133,90,.22));border-radius:50%;background:#fff;padding:.4rem}
+h1{margin:0;font-size:1.5rem;letter-spacing:.5px;white-space:nowrap}
 nav{display:flex;gap:.75rem;flex-wrap:wrap}
 .nav-btn{background:rgba(47,133,90,.08);border:1px solid transparent;color:var(--accent);padding:.65rem 1.05rem;border-radius:.75rem;font-weight:600;cursor:pointer;transition:all .2s ease;font-size:.95rem}
 .nav-btn:hover{background:rgba(47,133,90,.12);box-shadow:0 6px 14px rgba(47,133,90,.18)}
