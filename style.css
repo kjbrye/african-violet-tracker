@@ -54,6 +54,7 @@ dialog::backdrop{background:rgba(30,58,47,.4);backdrop-filter:blur(4px)}
 .card-plant:hover{transform:translateY(-2px);box-shadow:0 16px 26px rgba(47,133,90,.18)}
 .card-plant.is-selected{border-color:var(--accent);box-shadow:0 0 0 3px rgba(47,133,90,.18)}
 .card-plant img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:.85rem;border:1px solid rgba(79,121,94,.35);background:#f4fbf6}
+.card-plant img.placeholder{object-fit:contain;padding:1.25rem;background:#fff;filter:grayscale(.1);opacity:.85}
 .card-plant h3{margin:.25rem 0 .25rem 0;font-size:1.2rem}
 .badge{display:inline-block;padding:.2rem .55rem;border:1px solid rgba(47,133,90,.25);border-radius:.55rem;font-size:.8rem;color:var(--accent);background:rgba(47,133,90,.08);font-weight:600}
 .list{list-style:none;margin:0;padding:0;display:grid;gap:.75rem}
@@ -78,7 +79,7 @@ footer{padding:1.5rem;color:var(--muted);text-align:center;border-top:1px solid 
 #plantProfileContent{display:flex;flex-direction:column;gap:1.5rem}
 .profile-header{display:flex;flex-wrap:wrap;gap:1.25rem;align-items:flex-start}
 .profile-photo{width:220px;max-width:100%;aspect-ratio:4/3;border-radius:1rem;border:1px solid rgba(79,121,94,.35);object-fit:cover;background:#f4fbf6}
-.profile-photo.empty{display:grid;place-items:center;font-size:.9rem;color:var(--muted);background:var(--surface-2)}
+.profile-photo.placeholder{object-fit:contain;padding:1.5rem;background:#fff;filter:grayscale(.15);opacity:.9}
 .profile-summary{flex:1;min-width:240px}
 .profile-summary h3{margin-top:0;margin-bottom:.35rem;font-size:1.5rem}
 .profile-summary .muted{margin-top:.2rem}
