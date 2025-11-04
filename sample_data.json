@@ -16,6 +16,8 @@
       "source": "Local nursery",
       "waterInterval": 7,
       "fertInterval": 28,
+      "fertilizerNpk": "14-12-14",
+      "fertilizerMethod": "In water via wick",
       "notes": "Wick watering; likes bright indirect light.",
       "photo": "https://www.optimara.com/optimarafieldguide/images/varietiesa-l/crystal.jpg"
     },
@@ -35,6 +37,8 @@
       "source": "Leaf cutting trade",
       "waterInterval": 6,
       "fertInterval": 21,
+      "fertilizerNpk": "20-20-20",
+      "fertilizerMethod": "Soil drench",
       "notes": "Keep temps stable; avoid overwatering.",
       "photo": "https://i.pinimg.com/736x/e0/a4/ff/e0a4ffd950b21336ca20833217b95d91.jpg"
     }
