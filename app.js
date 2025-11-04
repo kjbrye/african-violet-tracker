@@ -89,6 +89,11 @@ $("#saveCultivar").addEventListener("click", (e)=>{
   e.preventDefault();
   saveCultivarFromForm();
 });
+$("#cancelCultivar").addEventListener("click", () => {
+  cultivarForm.reset();
+  $("#cvId").value = "";
+  cultivarDialog.close();
+});
 
 $("#cvPhoto").addEventListener("change", handlePhoto);
 
