@@ -1,0 +1,63 @@
+{
+  "cultivars": [
+    {
+      "id": "cv1",
+      "name": "Optimara Little Crystal",
+      "hybridizer": "Optimara",
+      "year": "1998",
+      "blossom": "Semi-double",
+      "color": "White with green edge",
+      "leaf": "Miniature",
+      "variegation": "\u2014",
+      "pot": "2.5",
+      "location": "Shelf A \u2013 NE window",
+      "acquired": "2025-02-10",
+      "source": "Local nursery",
+      "waterInterval": 7,
+      "fertInterval": 28,
+      "notes": "Wick watering; likes bright indirect light.",
+      "photo": ""
+    },
+    {
+      "id": "cv2",
+      "name": "EK-Snow Queen",
+      "hybridizer": "E. Korshunova",
+      "year": "2005",
+      "blossom": "Double",
+      "color": "White frilled",
+      "leaf": "Standard",
+      "variegation": "Tommie Lou",
+      "pot": "4",
+      "location": "Shelf B \u2013 Light stand",
+      "acquired": "2025-03-22",
+      "source": "Leaf cutting trade",
+      "waterInterval": 6,
+      "fertInterval": 21,
+      "notes": "Keep temps stable; avoid overwatering.",
+      "photo": ""
+    }
+  ],
+  "care": [
+    {
+      "id": "log1",
+      "cultivarId": "cv1",
+      "date": "2025-10-20",
+      "action": "Watered",
+      "notes": "Wick filled"
+    },
+    {
+      "id": "log2",
+      "cultivarId": "cv2",
+      "date": "2025-10-25",
+      "action": "Fertilized",
+      "notes": "1/4 tsp per gallon"
+    },
+    {
+      "id": "log3",
+      "cultivarId": "cv1",
+      "date": "2025-10-27",
+      "action": "Groomed",
+      "notes": "Removed spent blooms"
+    }
+  ]
+}

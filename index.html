@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>African Violets · Cultivars & Care</title>
+  <link rel="stylesheet" href="style.css" />
+  <meta name="theme-color" content="#4b5563">
+</head>
+<body>
+  <header>
+    <h1>African Violets</h1>
+    <nav>
+      <button class="nav-btn active" data-tab="tab-dashboard" aria-controls="tab-dashboard" aria-selected="true">Dashboard</button>
+      <button class="nav-btn" data-tab="tab-cultivars" aria-controls="tab-cultivars" aria-selected="false">Cultivars</button>
+      <button class="nav-btn" data-tab="tab-care" aria-controls="tab-care" aria-selected="false">Care Log</button>
+      <button class="nav-btn" data-tab="tab-calendar" aria-controls="tab-calendar" aria-selected="false">Calendar</button>
+      <button class="nav-btn" data-tab="tab-settings" aria-controls="tab-settings" aria-selected="false">Settings</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- DASHBOARD -->
+    <section id="tab-dashboard" class="tab active" role="region" aria-label="Dashboard">
+      <div class="grid-2">
+        <div class="card">
+          <h2>Upcoming & Overdue Tasks</h2>
+          <div class="toolbar">
+            <label>Show: 
+              <select id="filterTaskWindow">
+                <option value="7">Next 7 days</option>
+                <option value="14" selected>Next 14 days</option>
+                <option value="30">Next 30 days</option>
+              </select>
+            </label>
+          </div>
+          <ul id="taskList" class="list"></ul>
+        </div>
+        <div class="card">
+          <h2>Quick Add Care</h2>
+          <form id="quickCareForm" class="form-grid">
+            <label>Plant
+              <select id="qcCultivar" required></select>
+            </label>
+            <label>Action
+              <select id="qcAction" required>
+                <option value="Watered">Watered</option>
+                <option value="Fertilized">Fertilized</option>
+                <option value="Repotted">Repotted</option>
+                <option value="Groomed">Groomed</option>
+                <option value="Treated pests">Treated pests</option>
+                <option value="Propagated">Propagated</option>
+              </select>
+            </label>
+            <label>Date
+              <input type="date" id="qcDate" required />
+            </label>
+            <label>Notes
+              <input type="text" id="qcNotes" placeholder="Dilution, wick check, etc." />
+            </label>
+            <button type="submit">Add Care Entry</button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- CULTIVARS -->
+    <section id="tab-cultivars" class="tab" role="region" aria-label="Cultivars">
+      <div class="card">
+        <div class="toolbar">
+          <input id="cultivarSearch" type="search" placeholder="Search name, blossom, leaf, location…" />
+          <button id="btnAddCultivar">+ Add Cultivar</button>
+        </div>
+        <div id="cultivarGrid" class="grid-cards"></div>
+      </div>
+
+      <dialog id="cultivarDialog">
+        <form method="dialog" class="form-grid" id="cultivarForm">
+          <h3 id="cultivarDialogTitle">Add Cultivar</h3>
+          <input type="hidden" id="cvId" />
+          <label>Name* <input id="cvName" required /></label>
+          <label>Hybridizer <input id="cvHybridizer" /></label>
+          <label>Year <input id="cvYear" type="number" min="1800" max="2100" /></label>
+          <label>Blossom Type
+            <select id="cvBlossom">
+              <option value="">—</option>
+              <option>Single</option><option>Semi-double</option><option>Double</option>
+              <option>Star</option><option>Frilled</option><option>Fantasy</option><option>Chimera</option>
+            </select>
+          </label>
+          <label>Blossom Color <input id="cvColor" placeholder="e.g., lavender fantasy, variegated" /></label>
+          <label>Leaf Type
+            <select id="cvLeaf">
+              <option value="">—</option>
+              <option>Standard</option><option>Miniature</option><option>Semi-mini</option><option>Trailing</option>
+              <option>Variegated</option><option>Boy/Girl</option><option>Serrated</option>
+            </select>
+          </label>
+          <label>Variegation <input id="cvVariegation" placeholder="e.g., Tommie Lou, white edge" /></label>
+          <label>Pot Size (in) <input id="cvPot" type="number" step="0.25" min="1" max="12" /></label>
+          <label>Location <input id="cvLocation" placeholder="e.g., Shelf A, NE window" /></label>
+          <label>Acquired <input id="cvAcquired" type="date" /></label>
+          <label>Source <input id="cvSource" placeholder="Vendor, leaf, trade…" /></label>
+          <label>Watering Interval (days) <input id="cvWaterInterval" type="number" min="1" value="7" /></label>
+          <label>Fertilizer Interval (days) <input id="cvFertInterval" type="number" min="1" value="30" /></label>
+          <label>Notes <textarea id="cvNotes" rows="3"></textarea></label>
+          <label>Photo <input id="cvPhoto" type="file" accept="image/*" /></label>
+          <menu>
+            <button value="cancel" class="secondary">Cancel</button>
+            <button id="saveCultivar" value="default">Save</button>
+          </menu>
+        </form>
+      </dialog>
+    </section>
+
+    <!-- CARE LOG -->
+    <section id="tab-care" class="tab" role="region" aria-label="Care Log">
+      <div class="card">
+        <div class="toolbar">
+          <label>Plant
+            <select id="careFilterCultivar"></select>
+          </label>
+          <label>Action
+            <select id="careFilterAction">
+              <option value="">Any</option>
+              <option>Watered</option><option>Fertilized</option><option>Repotted</option>
+              <option>Groomed</option><option>Treated pests</option><option>Propagated</option>
+            </select>
+          </label>
+          <label>Date From <input type="date" id="careFilterFrom" /></label>
+          <label>Date To <input type="date" id="careFilterTo" /></label>
+          <button id="btnExportCSV">Export CSV</button>
+        </div>
+        <table id="careTable" class="table">
+          <thead>
+            <tr>
+              <th>Date</th><th>Plant</th><th>Action</th><th>Notes</th><th></th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- CALENDAR -->
+    <section id="tab-calendar" class="tab" role="region" aria-label="Calendar">
+      <div class="card">
+        <h2>Watering & Fertilizer Planner</h2>
+        <div class="calendar" id="calendar"></div>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section id="tab-settings" class="tab" role="region" aria-label="Settings">
+      <div class="card">
+        <h2>Data</h2>
+        <div class="toolbar">
+          <button id="btnImport">Import JSON</button>
+          <button id="btnExport">Export JSON</button>
+          <button id="btnLoadSample" class="secondary">Load Sample Data</button>
+          <button id="btnErase" class="danger">Erase All Data</button>
+        </div>
+        <p class="muted">Data is stored locally in your browser (localStorage). Export regularly for backup.</p>
+      </div>
+      <div class="card">
+        <h2>About</h2>
+        <p>Track your <em>Saintpaulia</em> cultivars and care routine. Add plants, log actions, and plan upcoming tasks. No accounts, no ads.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <small>&copy; 2025 African Violets · Local app</small>
+  </footer>
+
+  <input id="fileImport" type="file" accept="application/json" hidden />
+  <script src="app.js"></script>
+</body>
+</html>
