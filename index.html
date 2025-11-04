@@ -72,6 +72,10 @@
       <div class="card">
         <div class="toolbar">
           <input id="cultivarSearch" type="search" placeholder="Search cultivar, nickname, blossom, leaf, location…" />
+          <div class="view-switch" role="group" aria-label="Plant layout view">
+            <button type="button" class="view-switch-btn is-active" data-view="tiles" aria-pressed="true">Tiles</button>
+            <button type="button" class="view-switch-btn" data-view="list" aria-pressed="false">List</button>
+          </div>
           <button id="btnAddCultivar">+ Add Plant</button>
         </div>
         <div id="cultivarGrid" class="grid-cards"></div>
