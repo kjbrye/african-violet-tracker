@@ -4,6 +4,7 @@ const $ = (sel, root=document) => root.querySelector(sel);
 const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
 
 const STORE_KEY = "african_violets_store_v1";
+const PLACEHOLDER_PHOTO = "logo.svg";
 
 let store = loadStore();
 let selectedCultivarId = null;
@@ -209,8 +210,9 @@ function renderCultivars(){
     if(selectedCultivarId===c.id) div.classList.add("is-selected");
     const img = document.createElement("img");
     img.alt = plantLabel(c);
-    img.src = c.photo || "";
-    if(!c.photo){ img.style.opacity = .5; img.style.objectFit = "contain"; img.src = "data:image/svg+xml;utf8,"+encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 90'><rect width='120' height='90' fill='%230b0f14'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='%23aab7c4' font-size='10'>No Photo</text></svg>`); }
+    const { src, placeholder } = plantPhoto(c);
+    img.src = src;
+    if(placeholder) img.classList.add("placeholder");
     const h3 = document.createElement("h3"); h3.textContent = c.cultivarName;
     const nickname = document.createElement("div");
     nickname.className = "muted";
@@ -359,9 +361,9 @@ function renderPlantProfile(){
       `).join("")}</ul>`
     : `<p class="profile-empty">No care entries logged yet.</p>`;
 
-  const photo = plant.photo
-    ? `<img src="${plant.photo}" alt="${escapeHtml(plantLabel(plant))}" class="profile-photo" />`
-    : `<div class="profile-photo empty">No photo</div>`;
+  const { src: photoSrc, placeholder } = plantPhoto(plant);
+  const photoClasses = ["profile-photo", placeholder ? "placeholder" : ""].filter(Boolean).join(" ");
+  const photo = `<img src="${photoSrc}" alt="${escapeHtml(plantLabel(plant))}" class="${photoClasses}" />`;
 
   content.innerHTML = `
     <div class="profile-header">
@@ -667,3 +669,9 @@ function renderAll(){
   renderCalendar();
 }
 renderAll();
+function plantPhoto(plant){
+  if(plant?.photo){
+    return { src: plant.photo, placeholder: false };
+  }
+  return { src: PLACEHOLDER_PHOTO, placeholder: true };
+}
