@@ -396,7 +396,9 @@ function renderPlantProfile(){
     {label:"Acquired", value: plant.acquired ? escapeHtml(formatDate(plant.acquired)) : "—"},
     {label:"Source", value: plant.source ? escapeHtml(plant.source) : "—"},
     {label:"Watering Interval", value: plant.waterInterval ? escapeHtml(`${plant.waterInterval} days`) : "—"},
-    {label:"Fertilizer Interval", value: plant.fertInterval ? escapeHtml(`${plant.fertInterval} days`) : "—"}
+    {label:"Fertilizer Interval", value: plant.fertInterval ? escapeHtml(`${plant.fertInterval} days`) : "—"},
+    {label:"Fertilizer NPK", value: plant.fertilizerNpk ? escapeHtml(plant.fertilizerNpk) : "—"},
+    {label:"Fertilizer Method", value: plant.fertilizerMethod ? escapeHtml(plant.fertilizerMethod) : "—"}
   ];
 
   const nextWater = plant.waterInterval ? nextDue(plant._lastWater || plant.acquired || todayStr(), plant.waterInterval) : null;
@@ -431,24 +433,6 @@ function renderPlantProfile(){
   const { src: photoSrc, placeholder } = plantPhoto(plant);
   const photoClasses = ["profile-photo", placeholder ? "placeholder" : ""].filter(Boolean).join(" ");
   const photo = `<img src="${photoSrc}" alt="${escapeHtml(plantLabel(plant))}" class="${photoClasses}" />`;
-  const fertilizerNpk = plant.fertilizerNpk ? escapeHtml(plant.fertilizerNpk) : "";
-  const fertilizerMethod = plant.fertilizerMethod ? escapeHtml(plant.fertilizerMethod) : "";
-  const fertilizerHtml = `
-    <div class="profile-fertilizer">
-      <h4>Fertilizer plan</h4>
-      <dl class="profile-grid profile-fertilizer-grid">
-        <div>
-          <dt>NPK</dt>
-          <dd>${fertilizerNpk || "—"}</dd>
-        </div>
-        <div>
-          <dt>Application</dt>
-          <dd>${fertilizerMethod || "—"}</dd>
-        </div>
-      </dl>
-    </div>
-  `;
-
   content.innerHTML = `
     <div class="profile-header">
       ${photo}
@@ -465,7 +449,6 @@ function renderPlantProfile(){
         ${infoHtml}
       </dl>
     </div>
-    ${fertilizerHtml}
     <div class="profile-care">
       <h4>Care history</h4>
       ${careHtml}
