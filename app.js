@@ -6,6 +6,7 @@ const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
 const STORE_KEY = "african_violets_store_v1";
 
 let store = loadStore();
+let selectedCultivarId = null;
 function loadStore(){
   try{
     const raw = localStorage.getItem(STORE_KEY);
@@ -56,6 +57,9 @@ function plantLabel(plant){
     return `${plant.nickname} (${plant.cultivarName})`;
   }
   return plant.cultivarName;
+}
+function escapeHtml(str){
+  return String(str ?? "").replace(/[&<>"']/g, ch=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[ch]));
 }
 function comparePlants(a,b){
   const cult = (a.cultivarName || "").localeCompare(b.cultivarName || "");
@@ -199,6 +203,10 @@ function renderCultivars(){
   list.forEach(c=>{
     const div = document.createElement("div");
     div.className = "card-plant";
+    div.setAttribute("tabindex","0");
+    div.setAttribute("role","button");
+    div.setAttribute("aria-label",`View profile for ${plantLabel(c)}`);
+    if(selectedCultivarId===c.id) div.classList.add("is-selected");
     const img = document.createElement("img");
     img.alt = plantLabel(c);
     img.src = c.photo || "";
@@ -209,10 +217,10 @@ function renderCultivars(){
     nickname.textContent = c.nickname ? `Nickname: ${c.nickname}` : "";
     const meta = document.createElement("div");
     meta.innerHTML = [
-      c.blossom ? `<span class="badge">${c.blossom}</span>`:"",
-      c.color ? `<span class="badge">${c.color}</span>`:"",
-      c.leaf ? `<span class="badge">${c.leaf}</span>`:"",
-      c.location ? `<span class="badge">📍 ${c.location}</span>`:""
+      c.blossom ? `<span class="badge">${escapeHtml(c.blossom)}</span>`:"",
+      c.color ? `<span class="badge">${escapeHtml(c.color)}</span>`:"",
+      c.leaf ? `<span class="badge">${escapeHtml(c.leaf)}</span>`:"",
+      c.location ? `<span class="badge">📍 ${escapeHtml(c.location)}</span>`:""
     ].filter(Boolean).join(" ");
     const notes = document.createElement("div");
     notes.className = "muted";
@@ -238,10 +246,164 @@ function renderCultivars(){
     div.append(img, h3);
     if(c.nickname) div.append(nickname);
     div.append(meta, notes, actions);
+    div.addEventListener("click", (e)=>{
+      if(e.target.closest(".row-actions")) return;
+      openPlantProfile(c.id);
+    });
+    div.addEventListener("keydown", (e)=>{
+      if(e.target.closest && e.target.closest(".row-actions")) return;
+      if(e.key==="Enter" || e.key===" "){
+        e.preventDefault();
+        openPlantProfile(c.id);
+      }
+    });
     grid.appendChild(div);
   });
 }
 $("#cultivarSearch").addEventListener("input", renderCultivars);
+
+function closePlantProfile(){
+  selectedCultivarId = null;
+  renderPlantProfile();
+  renderCultivars();
+}
+
+function openPlantProfile(id){
+  selectedCultivarId = id;
+  const navBtn = $(".nav-btn[data-tab='tab-cultivars']");
+  if(navBtn && !navBtn.classList.contains("active")) navBtn.click();
+  renderPlantProfile();
+  renderCultivars();
+  const profile = $("#plantProfile");
+  if(profile){
+    profile.classList.remove("hidden");
+    if(!profile.hasAttribute("tabindex")) profile.setAttribute("tabindex","-1");
+    if(typeof profile.focus === "function"){
+      profile.focus();
+    }
+    if(typeof profile.scrollIntoView === "function"){
+      profile.scrollIntoView({behavior:"smooth", block:"start"});
+    }
+  }
+}
+
+function renderPlantProfile(){
+  const profile = $("#plantProfile");
+  const content = $("#plantProfileContent");
+  const editBtn = $("#profileEdit");
+  const logBtn = $("#profileLogCare");
+  if(!profile || !content) return;
+
+  const plant = store.cultivars.find(c=>c.id===selectedCultivarId);
+  if(!plant){
+    if(selectedCultivarId){
+      selectedCultivarId = null;
+      renderCultivars();
+    }
+    profile.classList.add("hidden");
+    content.innerHTML = "<p class=\"muted\">Select a plant to view its profile.</p>";
+    if(editBtn) editBtn.disabled = true;
+    if(logBtn) logBtn.disabled = true;
+    return;
+  }
+
+  profile.classList.remove("hidden");
+  if(editBtn) editBtn.disabled = false;
+  if(logBtn) logBtn.disabled = false;
+
+  const badges = [];
+  if(plant.blossom) badges.push(`<span class="profile-badge">${escapeHtml(plant.blossom)}</span>`);
+  if(plant.color) badges.push(`<span class="profile-badge">${escapeHtml(plant.color)}</span>`);
+  if(plant.leaf) badges.push(`<span class="profile-badge">${escapeHtml(plant.leaf)}</span>`);
+  if(plant.location) badges.push(`<span class="profile-badge">📍 ${escapeHtml(plant.location)}</span>`);
+
+  const info = [
+    {label:"Cultivar", value: plant.cultivarName ? escapeHtml(plant.cultivarName) : "—"},
+    {label:"Nickname", value: plant.nickname ? escapeHtml(plant.nickname) : "—"},
+    {label:"Hybridizer", value: plant.hybridizer ? escapeHtml(plant.hybridizer) : "—"},
+    {label:"Year", value: plant.year ? escapeHtml(plant.year) : "—"},
+    {label:"Variegation", value: plant.variegation ? escapeHtml(plant.variegation) : "—"},
+    {label:"Pot Size", value: plant.pot ? escapeHtml(`${plant.pot}\"`) : "—"},
+    {label:"Acquired", value: plant.acquired ? escapeHtml(formatDate(plant.acquired)) : "—"},
+    {label:"Source", value: plant.source ? escapeHtml(plant.source) : "—"},
+    {label:"Watering Interval", value: plant.waterInterval ? escapeHtml(`${plant.waterInterval} days`) : "—"},
+    {label:"Fertilizer Interval", value: plant.fertInterval ? escapeHtml(`${plant.fertInterval} days`) : "—"}
+  ];
+
+  const nextWater = plant.waterInterval ? nextDue(plant._lastWater || plant.acquired || todayStr(), plant.waterInterval) : null;
+  const nextFert = plant.fertInterval ? nextDue(plant._lastFert || plant.acquired || todayStr(), plant.fertInterval) : null;
+
+  const highlight = [];
+  if(nextWater) highlight.push(`Next watering: ${escapeHtml(nextWater)}`);
+  if(nextFert) highlight.push(`Next fertilizer: ${escapeHtml(nextFert)}`);
+
+  const infoHtml = info.map(item=>`
+      <div>
+        <dt>${item.label}</dt>
+        <dd>${item.value || "—"}</dd>
+      </div>
+    `).join("");
+
+  const careHistory = store.care
+    .filter(r=>r.cultivarId===plant.id)
+    .slice()
+    .sort((a,b)=>b.date.localeCompare(a.date));
+
+  const careHtml = careHistory.length
+    ? `<ul class="profile-care-list">${careHistory.map(entry=>`
+        <li>
+          <strong>${escapeHtml(formatDate(entry.date))}</strong>
+          <div>${escapeHtml(entry.action)}</div>
+          ${entry.notes ? `<div class="muted">${escapeHtml(entry.notes)}</div>` : ""}
+        </li>
+      `).join("")}</ul>`
+    : `<p class="profile-empty">No care entries logged yet.</p>`;
+
+  const photo = plant.photo
+    ? `<img src="${plant.photo}" alt="${escapeHtml(plantLabel(plant))}" class="profile-photo" />`
+    : `<div class="profile-photo empty">No photo</div>`;
+
+  content.innerHTML = `
+    <div class="profile-header">
+      ${photo}
+      <div class="profile-summary">
+        <h3>${escapeHtml(plant.cultivarName || "Unnamed plant")}</h3>
+        ${plant.nickname ? `<div class="muted">Nickname: ${escapeHtml(plant.nickname)}</div>` : ""}
+        ${plant.notes ? `<p>${escapeHtml(plant.notes)}</p>` : `<p class="muted">No notes added.</p>`}
+        ${highlight.length ? `<div class="muted">${highlight.join(" · ")}</div>` : ""}
+        ${badges.length ? `<div class="profile-badges">${badges.join("")}</div>` : ""}
+      </div>
+    </div>
+    <div class="profile-details">
+      <dl class="profile-grid">
+        ${infoHtml}
+      </dl>
+    </div>
+    <div class="profile-care">
+      <h4>Care history</h4>
+      ${careHtml}
+    </div>
+  `;
+}
+
+const profileBackBtn = $("#profileBack");
+if(profileBackBtn) profileBackBtn.addEventListener("click", closePlantProfile);
+const profileEditBtn = $("#profileEdit");
+if(profileEditBtn) profileEditBtn.addEventListener("click", ()=>{
+  const plant = store.cultivars.find(c=>c.id===selectedCultivarId);
+  if(plant){
+    openCultivarDialog(plant);
+  }
+});
+const profileLogBtn = $("#profileLogCare");
+if(profileLogBtn) profileLogBtn.addEventListener("click", ()=>{
+  const plant = store.cultivars.find(c=>c.id===selectedCultivarId);
+  if(plant){
+    $("#qcCultivar").value = plant.id;
+    $(".nav-btn[data-tab='tab-dashboard']").click();
+    $("#qcNotes").focus();
+  }
+});
 
 /* Care Log */
 function renderCareFilters(){
@@ -313,10 +475,10 @@ function renderCareTable(){
     const tr = document.createElement("tr");
     const c = store.cultivars.find(x=>x.id===r.cultivarId);
     tr.innerHTML = `
-      <td>${r.date}</td>
-      <td>${c ? plantLabel(c) : "—"}</td>
-      <td>${r.action}</td>
-      <td>${r.notes || ""}</td>
+      <td>${escapeHtml(formatDate(r.date))}</td>
+      <td>${c ? escapeHtml(plantLabel(c)) : "—"}</td>
+      <td>${escapeHtml(r.action)}</td>
+      <td>${r.notes ? escapeHtml(r.notes) : ""}</td>
       <td class="row-actions"></td>
     `;
     const actions = tr.querySelector(".row-actions");
@@ -391,7 +553,7 @@ function renderTasks(){
     const overdue = toDate(it.due) < now;
     if(overdue) li.classList.add("overdue");
     const left = document.createElement("div");
-    left.innerHTML = `<strong>${it.type}</strong> — ${plantLabel(it.plant)} <span class="badge">${it.due}${overdue?" · overdue":""}</span>`;
+    left.innerHTML = `<strong>${escapeHtml(it.type)}</strong> — ${escapeHtml(plantLabel(it.plant))} <span class="badge">${escapeHtml(it.due)}${overdue?" · overdue":""}</span>`;
     const right = document.createElement("div");
     right.className = "row-actions";
     const doneBtn = document.createElement("button");
@@ -498,6 +660,7 @@ $("#btnLoadSample").addEventListener("click", ()=>{
 /* Initial Render */
 function renderAll(){
   renderCultivars();
+  renderPlantProfile();
   renderCareFilters();
   renderCareTable();
   renderTasks();
