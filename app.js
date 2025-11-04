@@ -5,9 +5,11 @@ const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
 
 const STORE_KEY = "african_violets_store_v1";
 const PLACEHOLDER_PHOTO = "logo.svg";
+const VIEW_MODE_KEY = "cultivar_view_mode_v1";
 
 let store = loadStore();
 let selectedCultivarId = null;
+let cultivarViewMode = localStorage.getItem(VIEW_MODE_KEY) === "list" ? "list" : "tiles";
 function loadStore(){
   try{
     const raw = localStorage.getItem(STORE_KEY);
@@ -102,6 +104,32 @@ $("#cancelCultivar").addEventListener("click", () => {
 
 $("#cvPhoto").addEventListener("change", handlePhoto);
 
+const viewSwitchButtons = $$(".view-switch-btn[data-view]");
+function syncViewSwitchButtons(mode){
+  viewSwitchButtons.forEach(btn => {
+    const isActive = btn.dataset.view === mode;
+    btn.classList.toggle("is-active", isActive);
+    btn.setAttribute("aria-pressed", String(isActive));
+  });
+}
+function setCultivarView(mode, { skipRender } = {}){
+  if(mode !== "list" && mode !== "tiles") mode = "tiles";
+  if(cultivarViewMode === mode && !skipRender){
+    syncViewSwitchButtons(mode);
+    return;
+  }
+  cultivarViewMode = mode;
+  localStorage.setItem(VIEW_MODE_KEY, mode);
+  syncViewSwitchButtons(mode);
+  if(!skipRender){
+    renderCultivars();
+  }
+}
+viewSwitchButtons.forEach(btn => {
+  btn.addEventListener("click", () => setCultivarView(btn.dataset.view));
+});
+syncViewSwitchButtons(cultivarViewMode);
+
 function openCultivarDialog(cv=null){
   $("#cultivarDialogTitle").textContent = cv ? "Edit Plant" : "Add Plant";
   $("#cvId").value = cv?.id || "";
@@ -193,6 +221,8 @@ function renderCultivars(){
       return hay.includes(q);
     });
 
+  grid.className = "grid-cards";
+  grid.classList.add(cultivarViewMode === "list" ? "view-list" : "view-tiles");
   grid.innerHTML = "";
   if(list.length===0){
     const p = document.createElement("p");
@@ -204,6 +234,7 @@ function renderCultivars(){
   list.forEach(c=>{
     const div = document.createElement("div");
     div.className = "card-plant";
+    if(cultivarViewMode === "list") div.classList.add("card-plant--list");
     div.setAttribute("tabindex","0");
     div.setAttribute("role","button");
     div.setAttribute("aria-label",`View profile for ${plantLabel(c)}`);
@@ -213,22 +244,37 @@ function renderCultivars(){
     const { src, placeholder } = plantPhoto(c);
     img.src = src;
     if(placeholder) img.classList.add("placeholder");
-    const h3 = document.createElement("h3"); h3.textContent = c.cultivarName;
-    const nickname = document.createElement("div");
-    nickname.className = "muted";
-    nickname.textContent = c.nickname ? `Nickname: ${c.nickname}` : "";
-    const meta = document.createElement("div");
-    meta.innerHTML = [
+    const h3 = document.createElement("h3");
+    h3.textContent = c.cultivarName;
+    const info = document.createElement("div");
+    info.className = "card-plant-info";
+    info.appendChild(h3);
+    if(c.nickname){
+      const nickname = document.createElement("div");
+      nickname.className = "card-plant-nickname muted";
+      nickname.textContent = `Nickname: ${c.nickname}`;
+      info.appendChild(nickname);
+    }
+    const metaHtml = [
       c.blossom ? `<span class="badge">${escapeHtml(c.blossom)}</span>`:"",
       c.color ? `<span class="badge">${escapeHtml(c.color)}</span>`:"",
       c.leaf ? `<span class="badge">${escapeHtml(c.leaf)}</span>`:"",
       c.location ? `<span class="badge">📍 ${escapeHtml(c.location)}</span>`:""
     ].filter(Boolean).join(" ");
-    const notes = document.createElement("div");
-    notes.className = "muted";
-    notes.textContent = c.notes || "";
+    if(metaHtml){
+      const meta = document.createElement("div");
+      meta.className = "card-plant-meta";
+      meta.innerHTML = metaHtml;
+      info.appendChild(meta);
+    }
+    if(c.notes){
+      const notes = document.createElement("div");
+      notes.className = "card-plant-notes";
+      notes.textContent = c.notes;
+      info.appendChild(notes);
+    }
     const actions = document.createElement("div");
-    actions.className = "row-actions";
+    actions.className = "row-actions card-plant-actions";
     const edit = document.createElement("button"); edit.textContent = "Edit"; edit.addEventListener("click", ()=>openCultivarDialog(c));
     const del = document.createElement("button"); del.textContent = "Delete"; del.className = "danger"; del.addEventListener("click", ()=>{
       if(confirm(`Delete ${plantLabel(c)}? This removes its upcoming reminders but keeps care history.`)){
@@ -245,9 +291,7 @@ function renderCultivars(){
       $("#qcNotes").focus();
     });
     actions.append(edit, care, del);
-    div.append(img, h3);
-    if(c.nickname) div.append(nickname);
-    div.append(meta, notes, actions);
+    div.append(img, info, actions);
     div.addEventListener("click", (e)=>{
       if(e.target.closest(".row-actions")) return;
       openPlantProfile(c.id);
