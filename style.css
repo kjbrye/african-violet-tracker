@@ -612,7 +612,7 @@ dialog::backdrop {
 }
 
 .list .overdue {
-  border-color: #f28a8a;
+  border: 2px solid #f28a8a;
   background: var(--cream);
   color: var(--forest);
 }
