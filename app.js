@@ -250,16 +250,19 @@ function renderCultivars(){
     const { src, placeholder } = plantPhoto(c);
     img.src = src;
     if(placeholder) img.classList.add("placeholder");
+    const title = c.nickname || c.cultivarName || "Unnamed plant";
+    const subtitle = c.cultivarName && c.cultivarName !== title ? c.cultivarName : "";
     const h3 = document.createElement("h3");
-    h3.textContent = c.cultivarName;
+    h3.textContent = title;
     const info = document.createElement("div");
     info.className = "card-plant-info";
     info.appendChild(h3);
-    if(c.nickname){
-      const nickname = document.createElement("div");
-      nickname.className = "card-plant-nickname muted";
-      nickname.textContent = `Nickname: ${c.nickname}`;
-      info.appendChild(nickname);
+    if(subtitle){
+      const cultivar = document.createElement("div");
+      cultivar.className = "card-plant-subtitle";
+      cultivar.className = "card-plant-subtitle muted";
+      cultivar.textContent = subtitle;
+      info.appendChild(cultivar);
     }
     const metaHtml = [
       c.blossom ? `<span class="badge">${escapeHtml(c.blossom)}</span>`:"",
@@ -433,12 +436,16 @@ function renderPlantProfile(){
   const { src: photoSrc, placeholder } = plantPhoto(plant);
   const photoClasses = ["profile-photo", placeholder ? "placeholder" : ""].filter(Boolean).join(" ");
   const photo = `<img src="${photoSrc}" alt="${escapeHtml(plantLabel(plant))}" class="${photoClasses}" />`;
+  const title = plant.nickname || plant.cultivarName || "Unnamed plant";
+  const subtitle = plant.cultivarName && plant.cultivarName !== title ? plant.cultivarName : "";
+
   content.innerHTML = `
     <div class="profile-header">
       ${photo}
       <div class="profile-summary">
-        <h3>${escapeHtml(plant.cultivarName || "Unnamed plant")}</h3>
-        ${plant.nickname ? `<div class="muted">Nickname: ${escapeHtml(plant.nickname)}</div>` : ""}
+        <h3>${escapeHtml(title)}</h3>
+        ${subtitle ? `<div class="profile-subtitle">${escapeHtml(subtitle)}</div>` : ""}
+        ${subtitle ? `<div class="profile-subtitle muted">${escapeHtml(subtitle)}</div>` : ""}
         ${plant.notes ? `<p>${escapeHtml(plant.notes)}</p>` : `<p class="muted">No notes added.</p>`}
         ${highlight.length ? `<div class="muted">${highlight.join(" · ")}</div>` : ""}
         ${badges.length ? `<div class="profile-badges">${badges.join("")}</div>` : ""}
