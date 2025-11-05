@@ -184,7 +184,7 @@ main {
 }
 
 .info-grid article {
-  background: rgba(var(--tile-rgb), 0.55);
+  background: var(--cream);
   border-radius: var(--radius-md);
   padding: 1.4rem 1.6rem;
   border: 1px solid rgba(45, 69, 47, 0.18);
@@ -207,7 +207,7 @@ main {
 }
 
 .guide-columns section {
-  background: rgba(var(--tile-rgb), 0.4);
+  background: var(--cream);
   border-radius: var(--radius-md);
   padding: 1.6rem;
   border: 1px solid rgba(45, 69, 47, 0.18);
