@@ -2,15 +2,15 @@
   "cultivars": [
     {
       "id": "cv1",
-      "cultivarName": "Optimara Little Crystal",
-      "nickname": "Crystal North",
-      "hybridizer": "Optimara",
-      "year": "1998",
-      "blossom": "Semi-double",
-      "color": "White with green edge",
-      "leaf": "Miniature",
+      "cultivarName": "Rhapsodie Angelica",
+      "nickname": "Little Pink",
+      "hybridizer": "Reinhold Holtkamp Sr.",
+      "year": "1988",
+      "blossom": "Single",
+      "color": "Pink with darker pink",
+      "leaf": "Ovate",
       "variegation": "\u2014",
-      "pot": "2.5",
+      "pot": "4",
       "location": "Shelf A \u2013 NE window",
       "acquired": "2025-02-10",
       "source": "Local nursery",
@@ -19,7 +19,7 @@
       "fertilizerNpk": "14-12-14",
       "fertilizerMethod": "In water via wick",
       "notes": "Wick watering; likes bright indirect light.",
-      "photo": "https://www.optimara.com/optimarafieldguide/images/varietiesa-l/crystal.jpg"
+      "photo": "https://pixabay.com/photos/african-violets-saintpaulia-flower-2950058/"
     },
     {
       "id": "cv2",
