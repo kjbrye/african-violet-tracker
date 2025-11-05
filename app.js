@@ -260,6 +260,7 @@ function renderCultivars(){
     if(subtitle){
       const cultivar = document.createElement("div");
       cultivar.className = "card-plant-subtitle";
+      cultivar.className = "card-plant-subtitle muted";
       cultivar.textContent = subtitle;
       info.appendChild(cultivar);
     }
@@ -444,6 +445,7 @@ function renderPlantProfile(){
       <div class="profile-summary">
         <h3>${escapeHtml(title)}</h3>
         ${subtitle ? `<div class="profile-subtitle">${escapeHtml(subtitle)}</div>` : ""}
+        ${subtitle ? `<div class="profile-subtitle muted">${escapeHtml(subtitle)}</div>` : ""}
         ${plant.notes ? `<p>${escapeHtml(plant.notes)}</p>` : `<p class="muted">No notes added.</p>`}
         ${highlight.length ? `<div class="muted">${highlight.join(" · ")}</div>` : ""}
         ${badges.length ? `<div class="profile-badges">${badges.join("")}</div>` : ""}
