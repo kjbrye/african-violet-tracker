@@ -22,6 +22,7 @@
     <nav>
       <button class="nav-btn active" data-tab="tab-dashboard" aria-controls="tab-dashboard" aria-selected="true">Dashboard</button>
       <button class="nav-btn" data-tab="tab-cultivars" aria-controls="tab-cultivars" aria-selected="false">Plants</button>
+      <button class="nav-btn" data-tab="tab-hybrid" aria-controls="tab-hybrid" aria-selected="false">Hybrid Projects</button>
       <button class="nav-btn" data-tab="tab-care" aria-controls="tab-care" aria-selected="false">Care Log</button>
       <button class="nav-btn" data-tab="tab-calendar" aria-controls="tab-calendar" aria-selected="false">Calendar</button>
       <button class="nav-btn" data-tab="tab-guide" aria-controls="tab-guide" aria-selected="false">Care Guide</button>
@@ -139,6 +140,105 @@
           </menu>
         </form>
       </dialog>
+    </section>
+
+    <!-- HYBRIDIZATION PROJECTS -->
+    <section id="tab-hybrid" class="tab" role="region" aria-label="Hybridization projects">
+      <div class="card">
+        <h2>Hybridization &amp; Cultivar Projects</h2>
+        <p class="muted">Capture goals, parents, timelines, and experiments for every cross&mdash;or just track playful pollen swaps.</p>
+        <div class="toolbar">
+          <input id="projectSearch" type="search" placeholder="Search by project name, goal, trait, or note…" />
+          <button id="btnAddProject">+ New Project</button>
+        </div>
+        <div id="projectList" class="project-list"></div>
+      </div>
+
+      <div id="projectDetail" class="card hidden" role="region" aria-label="Project detail">
+        <div class="project-detail-header">
+          <button id="projectDetailBack" class="secondary">&larr; Back to projects</button>
+          <div class="project-detail-actions">
+            <button id="projectDetailEdit">Edit</button>
+            <button id="projectDetailDelete" class="danger">Delete</button>
+          </div>
+        </div>
+        <div id="projectDetailContent"></div>
+      </div>
+
+      <dialog id="projectDialog">
+        <form method="dialog" class="form-grid project-form" id="projectForm">
+          <h3 id="projectDialogTitle">Add Hybridization Project</h3>
+          <input type="hidden" id="projectId" />
+          <label>Project Name* <input id="projectName" required placeholder="e.g., Frosted Star x Snow Queen" /></label>
+          <label>Project Type
+            <select id="projectType">
+              <option value="goal">Goal-driven</option>
+              <option value="exploratory">Exploratory (just for fun)</option>
+            </select>
+          </label>
+          <div class="project-type-note" id="projectTypeNote"></div>
+          <label>Start Date <input type="date" id="projectStartDate" /></label>
+          <label>Status
+            <select id="projectStatus">
+              <option value="planning">Planning</option>
+              <option value="pollinated">Pollinated</option>
+              <option value="seedlings">Seedlings Growing</option>
+              <option value="blooming">Blooming &amp; Selecting</option>
+              <option value="registered">Registered/Named</option>
+              <option value="archived">Archived</option>
+            </select>
+          </label>
+          <div id="projectGoalGroup">
+            <label>Vision for the Cultivar <textarea id="projectGoal" rows="3" placeholder="Describe the bloom, foliage, and habit you hope to see."></textarea></label>
+          </div>
+          <label>Target Traits &amp; Variables <textarea id="projectTraits" rows="3" placeholder="Color blends, leaf forms, growth habits, environment tweaks…"></textarea></label>
+
+          <section class="repeat-group">
+            <div class="repeat-group-header">
+              <h4>Parents</h4>
+              <button type="button" class="secondary" id="btnAddParent">Add Parent</button>
+            </div>
+            <div class="repeat-items" id="projectParentList"></div>
+            <p class="muted small">List seed and pollen parents. Include cultivar names, clone IDs, or descriptors.</p>
+          </section>
+
+          <section class="repeat-group">
+            <div class="repeat-group-header">
+              <h4>Offspring &amp; Selections</h4>
+              <button type="button" class="secondary" id="btnAddOffspring">Add Seedling</button>
+            </div>
+            <div class="repeat-items" id="projectOffspringList"></div>
+            <p class="muted small">Track seedlings, keepers, and outcomes as they develop.</p>
+          </section>
+
+          <section class="repeat-group">
+            <div class="repeat-group-header">
+              <h4>Timeline</h4>
+              <button type="button" class="secondary" id="btnAddTimeline">Add Milestone</button>
+            </div>
+            <div class="repeat-items" id="projectTimelineList"></div>
+            <p class="muted small">Document pollination, sowing, germination, first blooms, and decisions.</p>
+          </section>
+
+          <section class="repeat-group">
+            <div class="repeat-group-header">
+              <h4>Experiment Variables</h4>
+              <button type="button" class="secondary" id="btnAddVariable">Add Variable</button>
+            </div>
+            <div class="repeat-items" id="projectVariableList"></div>
+            <p class="muted small">Capture soil mixes, fertilizers, lighting, or other tweaks.</p>
+          </section>
+
+          <label>Results &amp; Observations <textarea id="projectResults" rows="3" placeholder="Bloom notes, standouts, registration progress."></textarea></label>
+          <label>General Notes <textarea id="projectNotes" rows="3" placeholder="Anything else to remember"></textarea></label>
+          <menu>
+            <button type="button" value="cancel" class="secondary" id="cancelProject">Cancel</button>
+            <button id="saveProject" value="default">Save Project</button>
+          </menu>
+        </form>
+      </dialog>
+
+      <datalist id="projectParentSuggestions"></datalist>
     </section>
 
     <!-- CARE LOG -->
