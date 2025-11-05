@@ -9,22 +9,24 @@ const VIEW_MODE_KEY = "cultivar_view_mode_v1";
 
 let store = loadStore();
 let selectedCultivarId = null;
+let selectedProjectId = null;
 let cultivarViewMode = localStorage.getItem(VIEW_MODE_KEY) === "list" ? "list" : "tiles";
 function loadStore(){
   try{
     const raw = localStorage.getItem(STORE_KEY);
-    if(!raw) return normalizeStore({ cultivars: [], care: [] });
+    if(!raw) return normalizeStore({ cultivars: [], care: [], projects: [] });
     const parsed = JSON.parse(raw);
     return normalizeStore(parsed);
   }catch(e){
     console.error("Failed to parse store", e);
-    return normalizeStore({ cultivars: [], care: [] });
+    return normalizeStore({ cultivars: [], care: [], projects: [] });
   }
 }
 function normalizeStore(data){
   const cultivars = Array.isArray(data?.cultivars) ? data.cultivars.map(normalizePlant) : [];
   const care = Array.isArray(data?.care) ? data.care.map(entry=>({ ...entry })) : [];
-  return { cultivars, care };
+  const projects = Array.isArray(data?.projects) ? data.projects.map(normalizeProject) : [];
+  return { cultivars, care, projects };
 }
 function normalizePlant(plant){
   const cultivarName = String(plant?.cultivarName ?? plant?.name ?? "").trim();
@@ -34,6 +36,119 @@ function normalizePlant(plant){
   const normalized = { ...plant, cultivarName, nickname, fertilizerNpk, fertilizerMethod };
   delete normalized.name;
   return normalized;
+}
+
+const PROJECT_STATUS_LABELS = {
+  planning: "Planning",
+  pollinated: "Pollinated",
+  seedlings: "Seedlings Growing",
+  blooming: "Blooming & Selecting",
+  registered: "Registered/Named",
+  archived: "Archived"
+};
+
+const OFFSPRING_STATUS_LABELS = {
+  seedling: "Seedling",
+  blooming: "Blooming",
+  keeper: "Keeper",
+  culled: "Culled",
+  shared: "Shared",
+  registered: "Registered"
+};
+
+function normalizeProject(project){
+  const safe = project && typeof project === "object" ? project : {};
+  const name = String(safe.name ?? "").trim();
+  const type = safe.type === "exploratory" ? "exploratory" : "goal";
+  const goal = String(safe.goal ?? safe.endGoal ?? "").trim();
+  const traits = String(safe.traits ?? safe.variablesNote ?? "").trim();
+  const results = String(safe.results ?? "").trim();
+  const notes = String(safe.notes ?? "").trim();
+  const status = PROJECT_STATUS_LABELS[safe.status] ? safe.status : "planning";
+  const startDate = safe.startDate ? String(safe.startDate) : "";
+  const createdAt = safe.createdAt ? String(safe.createdAt) : new Date().toISOString();
+  const updatedAt = safe.updatedAt ? String(safe.updatedAt) : createdAt;
+  const parents = Array.isArray(safe.parents) ? safe.parents.map(normalizeProjectParent).filter(Boolean) : [];
+  const offspring = Array.isArray(safe.offspring) ? safe.offspring.map(normalizeProjectOffspring).filter(Boolean) : [];
+  const timeline = Array.isArray(safe.timeline) ? safe.timeline.map(normalizeProjectTimeline).filter(Boolean) : [];
+  timeline.sort((a,b)=> (a.date||"").localeCompare(b.date||""));
+  const variables = Array.isArray(safe.variables) ? safe.variables.map(normalizeProjectVariable).filter(Boolean) : [];
+  return {
+    id: safe.id || uid(),
+    name,
+    type,
+    goal,
+    traits,
+    results,
+    notes,
+    status,
+    startDate,
+    parents,
+    offspring,
+    timeline,
+    variables,
+    createdAt,
+    updatedAt
+  };
+}
+
+function normalizeProjectParent(parent){
+  if(!parent) return null;
+  const name = String(parent.name ?? parent.parent ?? "").trim();
+  const cultivarId = parent.cultivarId ? String(parent.cultivarId) : "";
+  const role = parent.role === "seed" || parent.role === "pollen" ? parent.role : "unknown";
+  const notes = String(parent.notes ?? parent.details ?? "").trim();
+  if(!name && !notes) return null;
+  return {
+    id: parent.id || uid(),
+    name,
+    cultivarId,
+    role,
+    notes
+  };
+}
+
+function normalizeProjectOffspring(entry){
+  if(!entry) return null;
+  const name = String(entry.name ?? entry.seedling ?? "").trim();
+  const statusOptions = ["seedling","blooming","keeper","culled","shared","registered"];
+  const status = statusOptions.includes(entry.status) ? entry.status : "seedling";
+  const notes = String(entry.notes ?? entry.description ?? "").trim();
+  const date = entry.date ? String(entry.date) : "";
+  if(!name && !notes && !date) return null;
+  return {
+    id: entry.id || uid(),
+    name,
+    status,
+    notes,
+    date
+  };
+}
+
+function normalizeProjectTimeline(entry){
+  if(!entry) return null;
+  const date = entry.date ? String(entry.date) : "";
+  const note = String(entry.note ?? entry.event ?? entry.description ?? "").trim();
+  if(!note && !date) return null;
+  return {
+    id: entry.id || uid(),
+    date,
+    note
+  };
+}
+
+function normalizeProjectVariable(entry){
+  if(!entry) return null;
+  const label = String(entry.label ?? entry.name ?? entry.variable ?? "").trim();
+  const value = String(entry.value ?? entry.detail ?? entry.description ?? "").trim();
+  const notes = String(entry.notes ?? "").trim();
+  if(!label && !value && !notes) return null;
+  return {
+    id: entry.id || uid(),
+    label,
+    value,
+    notes
+  };
 }
 function saveStore(){
   localStorage.setItem(STORE_KEY, JSON.stringify(store));
@@ -482,6 +597,774 @@ if(profileLogBtn) profileLogBtn.addEventListener("click", ()=>{
   }
 });
 
+/* Hybridization Projects */
+const projectDialog = $("#projectDialog");
+const projectForm = $("#projectForm");
+const projectParentList = $("#projectParentList");
+const projectOffspringList = $("#projectOffspringList");
+const projectTimelineList = $("#projectTimelineList");
+const projectVariableList = $("#projectVariableList");
+const projectSearchInput = $("#projectSearch");
+
+function projectStatusLabel(status){
+  return PROJECT_STATUS_LABELS[status] || PROJECT_STATUS_LABELS.planning;
+}
+
+function projectOffspringStatusLabel(status){
+  return OFFSPRING_STATUS_LABELS[status] || OFFSPRING_STATUS_LABELS.seedling;
+}
+
+function projectTypeLabel(type){
+  return type === "exploratory" ? "Exploratory (just for fun)" : "Goal-driven";
+}
+
+function projectStatusClass(status){
+  return (status || "planning").toString().toLowerCase().replace(/[^a-z0-9-]/g, "");
+}
+
+function syncProjectTypeControls(){
+  const typeSelect = $("#projectType");
+  const note = $("#projectTypeNote");
+  const goalGroup = $("#projectGoalGroup");
+  if(!typeSelect || !note || !goalGroup) return;
+  const type = typeSelect.value === "exploratory" ? "exploratory" : "goal";
+  if(type === "exploratory"){
+    note.textContent = "Exploratory projects celebrate surprises—capture observations without a fixed end goal.";
+    goalGroup.classList.add("hidden");
+  }else{
+    note.textContent = "Describe the bloom, foliage, and habit you hope to achieve to guide your selections.";
+    goalGroup.classList.remove("hidden");
+  }
+}
+
+function resetProjectForm(){
+  if(projectForm) projectForm.reset();
+  [projectParentList, projectOffspringList, projectTimelineList, projectVariableList].forEach(list=>{
+    if(list) list.innerHTML = "";
+  });
+}
+
+function addParentRow(data={}){
+  if(!projectParentList) return;
+  const row = document.createElement("div");
+  row.className = "repeat-item";
+  if(data.id) row.dataset.id = data.id;
+  if(data.cultivarId) row.dataset.cultivarId = data.cultivarId;
+
+  const fields = document.createElement("div");
+  fields.className = "repeat-item-fields cols-3";
+
+  const nameLabel = document.createElement("label");
+  nameLabel.textContent = "Parent Name";
+  const nameInput = document.createElement("input");
+  nameInput.type = "text";
+  nameInput.placeholder = "Cultivar or descriptor";
+  nameInput.dataset.field = "name";
+  nameInput.setAttribute("list", "projectParentSuggestions");
+  if(data.name) nameInput.value = data.name;
+  nameLabel.appendChild(nameInput);
+  fields.appendChild(nameLabel);
+
+  const roleLabel = document.createElement("label");
+  roleLabel.textContent = "Role";
+  const roleSelect = document.createElement("select");
+  roleSelect.dataset.field = "role";
+  [
+    { value: "", label: "—" },
+    { value: "seed", label: "Seed parent" },
+    { value: "pollen", label: "Pollen parent" },
+    { value: "unknown", label: "Shared/Unknown" }
+  ].forEach(opt=>{
+    const option = document.createElement("option");
+    option.value = opt.value;
+    option.textContent = opt.label;
+    roleSelect.appendChild(option);
+  });
+  roleSelect.value = data.role && ["seed","pollen","unknown"].includes(data.role) ? data.role : "";
+  roleLabel.appendChild(roleSelect);
+  fields.appendChild(roleLabel);
+
+  const notesLabel = document.createElement("label");
+  notesLabel.textContent = "Notes";
+  const notesInput = document.createElement("input");
+  notesInput.type = "text";
+  notesInput.placeholder = "Clone, leaf type, etc.";
+  notesInput.dataset.field = "notes";
+  if(data.notes) notesInput.value = data.notes;
+  notesLabel.appendChild(notesInput);
+  fields.appendChild(notesLabel);
+
+  row.appendChild(fields);
+
+  const actions = document.createElement("div");
+  actions.className = "repeat-item-actions";
+  const removeBtn = document.createElement("button");
+  removeBtn.type = "button";
+  removeBtn.className = "btn-link danger";
+  removeBtn.textContent = "Remove";
+  removeBtn.addEventListener("click", ()=> row.remove());
+  actions.appendChild(removeBtn);
+  row.appendChild(actions);
+
+  projectParentList.appendChild(row);
+}
+
+function addOffspringRow(data={}){
+  if(!projectOffspringList) return;
+  const row = document.createElement("div");
+  row.className = "repeat-item";
+  if(data.id) row.dataset.id = data.id;
+
+  const top = document.createElement("div");
+  top.className = "repeat-item-fields cols-3";
+
+  const nameLabel = document.createElement("label");
+  nameLabel.textContent = "Seedling / Selection";
+  const nameInput = document.createElement("input");
+  nameInput.type = "text";
+  nameInput.placeholder = "Tag or nickname";
+  nameInput.dataset.field = "name";
+  if(data.name) nameInput.value = data.name;
+  nameLabel.appendChild(nameInput);
+  top.appendChild(nameLabel);
+
+  const statusLabel = document.createElement("label");
+  statusLabel.textContent = "Stage";
+  const statusSelect = document.createElement("select");
+  statusSelect.dataset.field = "status";
+  ["seedling","blooming","keeper","culled","shared","registered"].forEach(value=>{
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = projectOffspringStatusLabel(value);
+    statusSelect.appendChild(option);
+  });
+  statusSelect.value = data.status && OFFSPRING_STATUS_LABELS[data.status] ? data.status : "seedling";
+  statusLabel.appendChild(statusSelect);
+  top.appendChild(statusLabel);
+
+  const dateLabel = document.createElement("label");
+  dateLabel.textContent = "Date";
+  const dateInput = document.createElement("input");
+  dateInput.type = "date";
+  dateInput.dataset.field = "date";
+  if(data.date) dateInput.value = data.date;
+  dateLabel.appendChild(dateInput);
+  top.appendChild(dateLabel);
+
+  row.appendChild(top);
+
+  const notesWrap = document.createElement("div");
+  notesWrap.className = "repeat-item-fields";
+  const notesLabel = document.createElement("label");
+  notesLabel.textContent = "Notes";
+  const notesArea = document.createElement("textarea");
+  notesArea.rows = 2;
+  notesArea.dataset.field = "notes";
+  notesArea.placeholder = "Traits, decisions, keeper reasons";
+  if(data.notes) notesArea.value = data.notes;
+  notesLabel.appendChild(notesArea);
+  notesWrap.appendChild(notesLabel);
+  row.appendChild(notesWrap);
+
+  const actions = document.createElement("div");
+  actions.className = "repeat-item-actions";
+  const removeBtn = document.createElement("button");
+  removeBtn.type = "button";
+  removeBtn.className = "btn-link danger";
+  removeBtn.textContent = "Remove";
+  removeBtn.addEventListener("click", ()=> row.remove());
+  actions.appendChild(removeBtn);
+  row.appendChild(actions);
+
+  projectOffspringList.appendChild(row);
+}
+
+function addTimelineRow(data={}){
+  if(!projectTimelineList) return;
+  const row = document.createElement("div");
+  row.className = "repeat-item";
+  if(data.id) row.dataset.id = data.id;
+
+  const fields = document.createElement("div");
+  fields.className = "repeat-item-fields cols-2";
+
+  const dateLabel = document.createElement("label");
+  dateLabel.textContent = "Date";
+  const dateInput = document.createElement("input");
+  dateInput.type = "date";
+  dateInput.dataset.field = "date";
+  if(data.date) dateInput.value = data.date;
+  dateLabel.appendChild(dateInput);
+  fields.appendChild(dateLabel);
+
+  const noteLabel = document.createElement("label");
+  noteLabel.textContent = "Milestone";
+  const noteArea = document.createElement("textarea");
+  noteArea.rows = 2;
+  noteArea.dataset.field = "note";
+  noteArea.placeholder = "Pollinated, sowed seed, first bloom, selection notes…";
+  if(data.note) noteArea.value = data.note;
+  noteLabel.appendChild(noteArea);
+  fields.appendChild(noteLabel);
+
+  row.appendChild(fields);
+
+  const actions = document.createElement("div");
+  actions.className = "repeat-item-actions";
+  const removeBtn = document.createElement("button");
+  removeBtn.type = "button";
+  removeBtn.className = "btn-link danger";
+  removeBtn.textContent = "Remove";
+  removeBtn.addEventListener("click", ()=> row.remove());
+  actions.appendChild(removeBtn);
+  row.appendChild(actions);
+
+  projectTimelineList.appendChild(row);
+}
+
+function addVariableRow(data={}){
+  if(!projectVariableList) return;
+  const row = document.createElement("div");
+  row.className = "repeat-item";
+  if(data.id) row.dataset.id = data.id;
+
+  const fields = document.createElement("div");
+  fields.className = "repeat-item-fields cols-2";
+
+  const labelLabel = document.createElement("label");
+  labelLabel.textContent = "Factor";
+  const labelInput = document.createElement("input");
+  labelInput.type = "text";
+  labelInput.placeholder = "e.g., Soil mix, fertilizer";
+  labelInput.dataset.field = "label";
+  if(data.label) labelInput.value = data.label;
+  labelLabel.appendChild(labelInput);
+  fields.appendChild(labelLabel);
+
+  const valueLabel = document.createElement("label");
+  valueLabel.textContent = "Details";
+  const valueArea = document.createElement("textarea");
+  valueArea.rows = 2;
+  valueArea.placeholder = "Ratios, timings, light levels…";
+  valueArea.dataset.field = "value";
+  if(data.value) valueArea.value = data.value;
+  valueLabel.appendChild(valueArea);
+  fields.appendChild(valueLabel);
+
+  row.appendChild(fields);
+
+  const notesWrap = document.createElement("div");
+  notesWrap.className = "repeat-item-fields";
+  const notesLabel = document.createElement("label");
+  notesLabel.textContent = "Notes";
+  const notesArea = document.createElement("textarea");
+  notesArea.rows = 2;
+  notesArea.placeholder = "Observations, adjustments";
+  notesArea.dataset.field = "notes";
+  if(data.notes) notesArea.value = data.notes;
+  notesLabel.appendChild(notesArea);
+  notesWrap.appendChild(notesLabel);
+  row.appendChild(notesWrap);
+
+  const actions = document.createElement("div");
+  actions.className = "repeat-item-actions";
+  const removeBtn = document.createElement("button");
+  removeBtn.type = "button";
+  removeBtn.className = "btn-link danger";
+  removeBtn.textContent = "Remove";
+  removeBtn.addEventListener("click", ()=> row.remove());
+  actions.appendChild(removeBtn);
+  row.appendChild(actions);
+
+  projectVariableList.appendChild(row);
+}
+
+function collectParentData(){
+  if(!projectParentList) return [];
+  return Array.from(projectParentList.querySelectorAll(".repeat-item")).map(row=>{
+    const name = row.querySelector("[data-field='name']")?.value.trim() || "";
+    const role = row.querySelector("[data-field='role']")?.value || "";
+    const notes = row.querySelector("[data-field='notes']")?.value.trim() || "";
+    const cultivarId = row.dataset.cultivarId ? String(row.dataset.cultivarId) : "";
+    if(!name && !notes) return null;
+    return {
+      id: row.dataset.id || uid(),
+      name,
+      role: role || "unknown",
+      notes,
+      cultivarId
+    };
+  }).filter(Boolean);
+}
+
+function collectOffspringData(){
+  if(!projectOffspringList) return [];
+  return Array.from(projectOffspringList.querySelectorAll(".repeat-item")).map(row=>{
+    const name = row.querySelector("[data-field='name']")?.value.trim() || "";
+    const status = row.querySelector("[data-field='status']")?.value || "seedling";
+    const date = row.querySelector("[data-field='date']")?.value || "";
+    const notes = row.querySelector("[data-field='notes']")?.value.trim() || "";
+    if(!name && !notes && !date) return null;
+    return {
+      id: row.dataset.id || uid(),
+      name,
+      status,
+      date,
+      notes
+    };
+  }).filter(Boolean);
+}
+
+function collectTimelineData(){
+  if(!projectTimelineList) return [];
+  return Array.from(projectTimelineList.querySelectorAll(".repeat-item")).map(row=>{
+    const date = row.querySelector("[data-field='date']")?.value || "";
+    const note = row.querySelector("[data-field='note']")?.value.trim() || "";
+    if(!note && !date) return null;
+    return {
+      id: row.dataset.id || uid(),
+      date,
+      note
+    };
+  }).filter(Boolean).sort((a,b)=> (a.date||"").localeCompare(b.date||""));
+}
+
+function collectVariableData(){
+  if(!projectVariableList) return [];
+  return Array.from(projectVariableList.querySelectorAll(".repeat-item")).map(row=>{
+    const label = row.querySelector("[data-field='label']")?.value.trim() || "";
+    const value = row.querySelector("[data-field='value']")?.value.trim() || "";
+    const notes = row.querySelector("[data-field='notes']")?.value.trim() || "";
+    if(!label && !value && !notes) return null;
+    return {
+      id: row.dataset.id || uid(),
+      label,
+      value,
+      notes
+    };
+  }).filter(Boolean);
+}
+
+function openProjectDialog(project=null){
+  if(!projectDialog || !projectForm) return;
+  resetProjectForm();
+  const get = (id)=>$("#"+id);
+  const title = get("projectDialogTitle");
+  if(title) title.textContent = project ? "Edit Hybridization Project" : "Add Hybridization Project";
+  const idField = get("projectId");
+  if(idField) idField.value = project?.id || "";
+  const nameField = get("projectName");
+  if(nameField) nameField.value = project?.name || "";
+  const typeField = get("projectType");
+  if(typeField) typeField.value = project?.type === "exploratory" ? "exploratory" : "goal";
+  const startField = get("projectStartDate");
+  if(startField){
+    startField.value = project?.startDate || "";
+    if(!project && !startField.value) startField.value = todayStr();
+  }
+  const statusField = get("projectStatus");
+  if(statusField) statusField.value = PROJECT_STATUS_LABELS[project?.status] ? project.status : "planning";
+  const goalField = get("projectGoal");
+  if(goalField) goalField.value = project?.goal || "";
+  const traitsField = get("projectTraits");
+  if(traitsField) traitsField.value = project?.traits || "";
+  const resultsField = get("projectResults");
+  if(resultsField) resultsField.value = project?.results || "";
+  const notesField = get("projectNotes");
+  if(notesField) notesField.value = project?.notes || "";
+
+  syncProjectTypeControls();
+
+  if(project?.parents?.length){
+    project.parents.forEach(p=>addParentRow(p));
+  }else{
+    addParentRow();
+    addParentRow();
+  }
+  if(project?.offspring?.length){
+    project.offspring.forEach(o=>addOffspringRow(o));
+  }else{
+    addOffspringRow();
+  }
+  if(project?.timeline?.length){
+    project.timeline.forEach(t=>addTimelineRow(t));
+  }else{
+    addTimelineRow();
+  }
+  if(project?.variables?.length){
+    project.variables.forEach(v=>addVariableRow(v));
+  }else{
+    addVariableRow();
+  }
+
+  renderProjectParentSuggestions();
+  projectDialog.showModal();
+}
+
+function saveProjectFromForm(){
+  if(!projectForm) return;
+  const get = (id)=>$("#"+id);
+  const idField = get("projectId");
+  const nameField = get("projectName");
+  if(!nameField) return;
+  const id = idField?.value || uid();
+  const name = nameField.value.trim();
+  if(!name){
+    alert("Project name is required.");
+    return;
+  }
+  const typeSelect = get("projectType");
+  const type = typeSelect && typeSelect.value === "exploratory" ? "exploratory" : "goal";
+  const statusSelect = get("projectStatus");
+  const statusValue = statusSelect && PROJECT_STATUS_LABELS[statusSelect.value] ? statusSelect.value : "planning";
+  const goalField = get("projectGoal");
+  const traitsField = get("projectTraits");
+  const resultsField = get("projectResults");
+  const notesField = get("projectNotes");
+  const startField = get("projectStartDate");
+
+  const projectData = {
+    id,
+    name,
+    type,
+    status: statusValue,
+    startDate: startField?.value || "",
+    goal: goalField?.value.trim() || "",
+    traits: traitsField?.value.trim() || "",
+    results: resultsField?.value.trim() || "",
+    notes: notesField?.value.trim() || "",
+    parents: collectParentData(),
+    offspring: collectOffspringData(),
+    timeline: collectTimelineData(),
+    variables: collectVariableData()
+  };
+
+  const now = new Date().toISOString();
+  const existing = store.projects.find(p=>p.id===id);
+  if(existing){
+    Object.assign(existing, projectData, { updatedAt: now });
+  }else{
+    store.projects.push({ ...projectData, createdAt: now, updatedAt: now });
+  }
+  selectedProjectId = id;
+  saveStore();
+  if(projectDialog) projectDialog.close();
+}
+
+function deleteProject(id){
+  const project = store.projects.find(p=>p.id===id);
+  if(!project) return;
+  if(!confirm(`Delete project "${project.name || "Untitled project"}"? This cannot be undone.`)) return;
+  store.projects = store.projects.filter(p=>p.id!==id);
+  if(selectedProjectId === id) selectedProjectId = null;
+  saveStore();
+}
+
+function projectMatchesSearch(project, query){
+  if(!query) return true;
+  const hay = [
+    project.name,
+    project.goal,
+    project.traits,
+    project.results,
+    project.notes,
+    (project.parents || []).map(p=>`${p.name} ${p.notes || ""}`).join(" "),
+    (project.offspring || []).map(o=>`${o.name} ${o.notes || ""}`).join(" "),
+    (project.timeline || []).map(t=>`${t.note} ${t.date || ""}`).join(" "),
+    (project.variables || []).map(v=>`${v.label} ${v.value} ${v.notes || ""}`).join(" ")
+  ].filter(Boolean).join(" ").toLowerCase();
+  return hay.includes(query);
+}
+
+function renderProjectParentSuggestions(){
+  const list = $("#projectParentSuggestions");
+  if(!list) return;
+  const options = store.cultivars
+    .slice()
+    .sort(comparePlants)
+    .map(c=>`<option value="${escapeHtml(plantLabel(c))}"></option>`)
+    .join("");
+  list.innerHTML = options;
+}
+
+function renderProjects(){
+  const list = $("#projectList");
+  if(!list) return;
+  const query = (projectSearchInput?.value || "").toLowerCase().trim();
+  const projects = store.projects
+    .slice()
+    .sort((a,b)=>{
+      const name = (a.name || "").localeCompare(b.name || "");
+      if(name !== 0) return name;
+      return (a.createdAt || "").localeCompare(b.createdAt || "");
+    })
+    .filter(p=>projectMatchesSearch(p, query));
+
+  list.innerHTML = "";
+  if(projects.length === 0){
+    const message = document.createElement("p");
+    message.className = "empty";
+    message.textContent = store.projects.length ? "No projects match your search." : "No hybridization projects yet. Start one!";
+    list.appendChild(message);
+    return;
+  }
+
+  projects.forEach(project=>{
+    const card = document.createElement("article");
+    card.className = "project-card";
+    card.setAttribute("tabindex","0");
+    card.setAttribute("role","button");
+    card.setAttribute("aria-label",`View project ${project.name || "Untitled project"}`);
+    if(project.id === selectedProjectId) card.classList.add("is-selected");
+
+    const title = document.createElement("h3");
+    title.textContent = project.name || "Untitled project";
+    card.appendChild(title);
+
+    const meta = document.createElement("div");
+    meta.className = "project-card-meta";
+    const typeBadge = document.createElement("span");
+    typeBadge.className = "badge badge--type" + (project.type === "exploratory" ? " exploratory" : "");
+    typeBadge.textContent = projectTypeLabel(project.type);
+    meta.appendChild(typeBadge);
+    const statusBadge = document.createElement("span");
+    statusBadge.className = `badge badge--status status-${projectStatusClass(project.status)}`;
+    statusBadge.textContent = projectStatusLabel(project.status);
+    meta.appendChild(statusBadge);
+    card.appendChild(meta);
+
+    const summaryText = project.type === "goal" && project.goal
+      ? project.goal
+      : project.results || project.traits || project.notes || "Log seedlings and milestones as you explore.";
+    const summary = document.createElement("div");
+    summary.className = "project-card-summary";
+    summary.textContent = summaryText;
+    card.appendChild(summary);
+
+    const footer = document.createElement("div");
+    footer.className = "project-card-footer";
+    const metaText = document.createElement("span");
+    metaText.className = "muted small";
+    const sortedTimeline = (project.timeline || []).slice().sort((a,b)=> (a.date||"").localeCompare(b.date||""));
+    const latest = sortedTimeline.length ? sortedTimeline[sortedTimeline.length - 1] : null;
+    if(latest){
+      const dateLabel = latest.date ? formatDate(latest.date) : "Update";
+      metaText.textContent = `${dateLabel}: ${latest.note}`;
+    }else if(project.startDate){
+      metaText.textContent = `Started ${formatDate(project.startDate)}`;
+    }else if(project.createdAt){
+      metaText.textContent = `Logged ${formatDate((project.createdAt || "").slice(0,10))}`;
+    }else{
+      metaText.textContent = "No timeline yet";
+    }
+    footer.appendChild(metaText);
+
+    const actions = document.createElement("div");
+    actions.className = "row-actions";
+    const editBtn = document.createElement("button");
+    editBtn.type = "button";
+    editBtn.className = "secondary";
+    editBtn.textContent = "Edit";
+    editBtn.addEventListener("click", (ev)=>{ ev.stopPropagation(); openProjectDialog(project); });
+    const deleteBtn = document.createElement("button");
+    deleteBtn.type = "button";
+    deleteBtn.className = "danger";
+    deleteBtn.textContent = "Delete";
+    deleteBtn.addEventListener("click", (ev)=>{ ev.stopPropagation(); deleteProject(project.id); });
+    actions.append(editBtn, deleteBtn);
+    footer.appendChild(actions);
+
+    card.appendChild(footer);
+
+    card.addEventListener("click", ()=> openProjectDetail(project.id));
+    card.addEventListener("keydown", (ev)=>{
+      if(ev.key === "Enter" || ev.key === " "){
+        ev.preventDefault();
+        openProjectDetail(project.id);
+      }
+    });
+
+    list.appendChild(card);
+  });
+}
+
+function openProjectDetail(id){
+  selectedProjectId = id;
+  renderProjectDetail();
+  renderProjects();
+  const panel = $("#projectDetail");
+  if(panel){
+    panel.classList.remove("hidden");
+    if(!panel.hasAttribute("tabindex")) panel.setAttribute("tabindex","-1");
+    panel.focus?.();
+    panel.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+}
+
+function renderProjectDetail(){
+  const panel = $("#projectDetail");
+  const content = $("#projectDetailContent");
+  const editBtn = $("#projectDetailEdit");
+  const deleteBtn = $("#projectDetailDelete");
+  if(!panel || !content) return;
+
+  const project = store.projects.find(p=>p.id===selectedProjectId);
+  if(!project){
+    if(selectedProjectId){
+      selectedProjectId = null;
+    }
+    panel.classList.add("hidden");
+    content.innerHTML = "<p class=\"muted\">Select a project to view its details.</p>";
+    if(editBtn) editBtn.disabled = true;
+    if(deleteBtn) deleteBtn.disabled = true;
+    return;
+  }
+
+  panel.classList.remove("hidden");
+  if(editBtn) editBtn.disabled = false;
+  if(deleteBtn) deleteBtn.disabled = false;
+
+  const statusClass = projectStatusClass(project.status);
+  const typeClass = project.type === "exploratory" ? "badge badge--type exploratory" : "badge badge--type";
+  const start = project.startDate ? `Started ${formatDate(project.startDate)}` : "";
+  const created = project.createdAt ? `Logged ${formatDate((project.createdAt || "").slice(0,10))}` : "";
+  const updated = project.updatedAt ? `Updated ${formatDate((project.updatedAt || "").slice(0,10))}` : "";
+  const dates = [start, created, updated].filter(Boolean).join(" · ");
+
+  const parents = project.parents?.length
+    ? `<ul class="structured-list">${project.parents.map(parent=>{
+        const role = parent.role === "seed" ? "Seed parent" : parent.role === "pollen" ? "Pollen parent" : "Parent";
+        const meta = [role];
+        if(parent.notes) meta.push(parent.notes);
+        return `<li><strong>${escapeHtml(parent.name)}</strong>${meta.length ? `<div class=\"muted small\">${escapeHtml(meta.join(" · "))}</div>` : ""}</li>`;
+      }).join("")}</ul>`
+    : `<p class="muted">No parents recorded yet.</p>`;
+
+  const offspring = project.offspring?.length
+    ? `<ul class="structured-list">${project.offspring.map(child=>{
+        const parts = [];
+        if(child.status) parts.push(projectOffspringStatusLabel(child.status));
+        if(child.date) parts.push(formatDate(child.date));
+        const meta = parts.length ? `<div class=\"muted small\">${escapeHtml(parts.join(" · "))}</div>` : "";
+        const notes = child.notes ? `<div>${escapeHtml(child.notes)}</div>` : "";
+        return `<li><strong>${escapeHtml(child.name)}</strong>${meta}${notes}</li>`;
+      }).join("")}</ul>`
+    : `<p class="muted">No seedlings tracked yet.</p>`;
+
+  const sortedTimeline = (project.timeline || []).slice().sort((a,b)=> (a.date||"").localeCompare(b.date||""));
+  const timeline = sortedTimeline.length
+    ? `<div class="timeline-list">${sortedTimeline.map(item=>{
+        const label = item.date ? formatDate(item.date) : "Undated";
+        return `<div class=\"timeline-item\"><div class=\"timeline-item-date\">${escapeHtml(label)}</div><div class=\"timeline-item-note\">${escapeHtml(item.note)}</div></div>`;
+      }).join("")}</div>`
+    : `<p class="muted">Add milestones to follow progress from pollination to bloom.</p>`;
+
+  const variables = project.variables?.length
+    ? `<ul class="structured-list">${project.variables.map(v=>{
+        const extras = [v.value ? `<div>${escapeHtml(v.value)}</div>` : "", v.notes ? `<div class=\"muted small\">${escapeHtml(v.notes)}</div>` : ""].join("");
+        return `<li><strong>${escapeHtml(v.label)}</strong>${extras}</li>`;
+      }).join("")}</ul>`
+    : `<p class="muted">Document soil, lighting, or feeding experiments here.</p>`;
+
+  const goalBlock = project.type === "exploratory"
+    ? (project.goal ? `<p>${escapeHtml(project.goal)}</p>` : `<p class="muted">Exploratory project—no defined end goal.</p>`)
+    : (project.goal ? `<p>${escapeHtml(project.goal)}</p>` : `<p class="muted">Add the vision for this cross to guide selections.</p>`);
+
+  const traitsBlock = project.traits
+    ? `<p>${escapeHtml(project.traits)}</p>`
+    : `<p class="muted">List target traits or experiment variables.</p>`;
+
+  const resultsBlock = project.results
+    ? `<p>${escapeHtml(project.results)}</p>`
+    : `<p class="muted">Summarize bloom results, standouts, or registration progress.</p>`;
+
+  const notesBlock = project.notes
+    ? `<p>${escapeHtml(project.notes)}</p>`
+    : `<p class="muted">Capture extra context, follow-ups, or observations.</p>`;
+
+  content.innerHTML = `
+    <div class="project-detail-summary">
+      <h3>${escapeHtml(project.name || "Untitled project")}</h3>
+      <div class="project-detail-meta">
+        <span class="${typeClass}">${escapeHtml(projectTypeLabel(project.type))}</span>
+        <span class="badge badge--status status-${escapeHtml(statusClass)}">${escapeHtml(projectStatusLabel(project.status))}</span>
+      </div>
+      ${dates ? `<div class="project-detail-dates">${escapeHtml(dates)}</div>` : ""}
+    </div>
+    <section class="project-detail-section">
+      <h4>Vision</h4>
+      ${goalBlock}
+    </section>
+    <section class="project-detail-section">
+      <h4>Target Traits &amp; Strategy</h4>
+      ${traitsBlock}
+    </section>
+    <div class="project-detail-columns">
+      <section class="project-detail-section">
+        <h4>Parents</h4>
+        ${parents}
+      </section>
+      <section class="project-detail-section">
+        <h4>Offspring &amp; Selections</h4>
+        ${offspring}
+      </section>
+    </div>
+    <section class="project-detail-section">
+      <h4>Timeline</h4>
+      ${timeline}
+    </section>
+    <section class="project-detail-section">
+      <h4>Experiment Variables</h4>
+      ${variables}
+    </section>
+    <section class="project-detail-section">
+      <h4>Results</h4>
+      ${resultsBlock}
+    </section>
+    <section class="project-detail-section">
+      <h4>Notes</h4>
+      ${notesBlock}
+    </section>
+  `;
+}
+
+if(projectForm) projectForm.addEventListener("submit", (e)=> e.preventDefault());
+if(projectDialog) projectDialog.addEventListener("close", resetProjectForm);
+if(projectSearchInput) projectSearchInput.addEventListener("input", renderProjects);
+const addProjectBtn = $("#btnAddProject");
+if(addProjectBtn) addProjectBtn.addEventListener("click", ()=> openProjectDialog());
+const addParentBtn = $("#btnAddParent");
+if(addParentBtn) addParentBtn.addEventListener("click", ()=> addParentRow());
+const addOffspringBtn = $("#btnAddOffspring");
+if(addOffspringBtn) addOffspringBtn.addEventListener("click", ()=> addOffspringRow());
+const addTimelineBtn = $("#btnAddTimeline");
+if(addTimelineBtn) addTimelineBtn.addEventListener("click", ()=> addTimelineRow());
+const addVariableBtn = $("#btnAddVariable");
+if(addVariableBtn) addVariableBtn.addEventListener("click", ()=> addVariableRow());
+const saveProjectBtn = $("#saveProject");
+if(saveProjectBtn) saveProjectBtn.addEventListener("click", (e)=>{ e.preventDefault(); saveProjectFromForm(); });
+const cancelProjectBtn = $("#cancelProject");
+if(cancelProjectBtn) cancelProjectBtn.addEventListener("click", ()=>{ if(projectDialog) projectDialog.close(); });
+const projectTypeSelect = $("#projectType");
+if(projectTypeSelect) projectTypeSelect.addEventListener("change", syncProjectTypeControls);
+const projectDetailBack = $("#projectDetailBack");
+if(projectDetailBack) projectDetailBack.addEventListener("click", ()=>{
+  selectedProjectId = null;
+  renderProjectDetail();
+  renderProjects();
+});
+const projectDetailEdit = $("#projectDetailEdit");
+if(projectDetailEdit) projectDetailEdit.addEventListener("click", ()=>{
+  const project = store.projects.find(p=>p.id===selectedProjectId);
+  if(project) openProjectDialog(project);
+});
+const projectDetailDelete = $("#projectDetailDelete");
+if(projectDetailDelete) projectDetailDelete.addEventListener("click", ()=>{
+  if(selectedProjectId) deleteProject(selectedProjectId);
+});
+
+syncProjectTypeControls();
+
 /* Care Log */
 function renderCareFilters(){
   const sel1 = $("#careFilterCultivar");
@@ -708,11 +1591,13 @@ $("#fileImport").addEventListener("change", async (e)=>{
   const text = await file.text();
   try{
     const data = JSON.parse(text);
-    if(!data || !Array.isArray(data.cultivars) || !Array.isArray(data.care)){
+    if(!data || !Array.isArray(data.cultivars) || !Array.isArray(data.care) || (data.projects && !Array.isArray(data.projects))){
       alert("Invalid backup file.");
       return;
     }
     store = normalizeStore(data);
+    selectedCultivarId = null;
+    selectedProjectId = null;
     saveStore();
     alert("Imported successfully.");
   }catch(err){
@@ -722,14 +1607,18 @@ $("#fileImport").addEventListener("change", async (e)=>{
   }
 });
 $("#btnErase").addEventListener("click", ()=>{
-  if(confirm("Erase all plants and care history? This cannot be undone.")){
-    store = { cultivars: [], care: [] };
+  if(confirm("Erase all plants, care history, and hybrid projects? This cannot be undone.")){
+    store = { cultivars: [], care: [], projects: [] };
+    selectedCultivarId = null;
+    selectedProjectId = null;
     saveStore();
   }
 });
 $("#btnLoadSample").addEventListener("click", ()=>{
   fetch("sample_data.json").then(r=>r.json()).then(data=>{
     store = normalizeStore(data);
+    selectedCultivarId = null;
+    selectedProjectId = null;
     saveStore();
   }).catch(()=> alert("Could not load sample data."));
 });
@@ -738,6 +1627,9 @@ $("#btnLoadSample").addEventListener("click", ()=>{
 function renderAll(){
   renderCultivars();
   renderPlantProfile();
+  renderProjects();
+  renderProjectDetail();
+  renderProjectParentSuggestions();
   renderCareFilters();
   renderCareTable();
   renderTasks();

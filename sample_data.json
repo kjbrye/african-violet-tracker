@@ -65,5 +65,38 @@
       "action": "Groomed",
       "notes": "Removed spent blooms"
     }
+  ],
+  "projects": [
+    {
+      "id": "proj1",
+      "name": "Angelica x Snow Queen",
+      "type": "goal",
+      "status": "seedlings",
+      "startDate": "2025-04-12",
+      "goal": "Large double white blooms with pink fantasy streaking and a quilted variegated leaf canopy.",
+      "traits": "Comparing wick-fed seedlings versus humidity dome starts; tracking which yields fuller crowns.",
+      "parents": [
+        { "id": "pr1", "name": "Rhapsodie Angelica", "role": "seed", "notes": "Reliable pink fantasy" },
+        { "id": "pr2", "name": "EK-Snow Queen", "role": "pollen", "notes": "Frilled edges, Tommie Lou variegation" }
+      ],
+      "offspring": [
+        { "id": "off1", "name": "Tray A-3", "status": "seedling", "date": "2025-08-18", "notes": "Strong variegation, compact growth" },
+        { "id": "off2", "name": "Tray B-5", "status": "keeper", "date": "2025-10-05", "notes": "First bloom showing double petals with fantasy speckles" }
+      ],
+      "timeline": [
+        { "id": "tl1", "date": "2025-04-12", "note": "Pollinated Angelica with Snow Queen pollen" },
+        { "id": "tl2", "date": "2025-05-25", "note": "Harvested pods and sowed seed on wick-start trays" },
+        { "id": "tl3", "date": "2025-08-10", "note": "Pricked out 20 seedlings into 2\" pots" },
+        { "id": "tl4", "date": "2025-10-05", "note": "First keeper candidate blooming" }
+      ],
+      "variables": [
+        { "id": "var1", "label": "Medium", "value": "50% peat / 25% perlite / 25% vermiculite", "notes": "Microwave sterilized" },
+        { "id": "var2", "label": "Fertilizer", "value": "14-12-14 at 1/4 tsp per gallon via wick" }
+      ],
+      "results": "Two seedlings displaying double fantasy blooms; evaluating stability over next cycles.",
+      "notes": "Consider backcrossing keeper B-5 to Angelica if striping holds on second bloom.",
+      "createdAt": "2025-04-12T09:00:00.000Z",
+      "updatedAt": "2025-10-27T16:10:00.000Z"
+    }
   ]
 }
