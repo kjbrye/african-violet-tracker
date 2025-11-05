@@ -6,27 +6,45 @@ const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
 const STORE_KEY = "african_violets_store_v1";
 const PLACEHOLDER_PHOTO = "logo.svg";
 const VIEW_MODE_KEY = "cultivar_view_mode_v1";
+const WEEKDAYS_SHORT = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const MONTH_NAMES = [
+  "January","February","March","April","May","June",
+  "July","August","September","October","November","December"
+];
+const CALENDAR_ENTRY_ORDER = {
+  "care-water": 0,
+  "care-fertilize": 1,
+  project: 2,
+  manual: 3
+};
+const CALENDAR_ICONS = {
+  water: "💧",
+  fertilize: "🌱",
+  project: "🧬"
+};
 
 let store = loadStore();
 let selectedCultivarId = null;
 let selectedProjectId = null;
 let cultivarViewMode = localStorage.getItem(VIEW_MODE_KEY) === "list" ? "list" : "tiles";
+let calendarViewDate = startOfMonth(new Date());
 function loadStore(){
   try{
     const raw = localStorage.getItem(STORE_KEY);
-    if(!raw) return normalizeStore({ cultivars: [], care: [], projects: [] });
+    if(!raw) return normalizeStore({ cultivars: [], care: [], projects: [], tasks: [] });
     const parsed = JSON.parse(raw);
     return normalizeStore(parsed);
   }catch(e){
     console.error("Failed to parse store", e);
-    return normalizeStore({ cultivars: [], care: [], projects: [] });
+    return normalizeStore({ cultivars: [], care: [], projects: [], tasks: [] });
   }
 }
 function normalizeStore(data){
   const cultivars = Array.isArray(data?.cultivars) ? data.cultivars.map(normalizePlant) : [];
   const care = Array.isArray(data?.care) ? data.care.map(entry=>({ ...entry })) : [];
   const projects = Array.isArray(data?.projects) ? data.projects.map(normalizeProject) : [];
-  return { cultivars, care, projects };
+  const tasks = Array.isArray(data?.tasks) ? data.tasks.map(normalizeTask).filter(Boolean) : [];
+  return { cultivars, care, projects, tasks };
 }
 function normalizePlant(plant){
   const cultivarName = String(plant?.cultivarName ?? plant?.name ?? "").trim();
@@ -150,6 +168,24 @@ function normalizeProjectVariable(entry){
     notes
   };
 }
+
+function normalizeTask(task){
+  if(!task) return null;
+  const title = String(task.title ?? task.name ?? "").trim();
+  const date = task.date ? String(task.date) : "";
+  const icon = String(task.icon ?? "").trim() || "📌";
+  const notes = String(task.notes ?? "").trim();
+  const createdAt = task.createdAt ? String(task.createdAt) : new Date().toISOString();
+  if(!title || !date) return null;
+  return {
+    id: task.id || uid(),
+    title,
+    date,
+    icon,
+    notes,
+    createdAt
+  };
+}
 function saveStore(){
   localStorage.setItem(STORE_KEY, JSON.stringify(store));
   renderAll();
@@ -200,6 +236,54 @@ function csvEscape(v){
   const s = String(v);
   if(/[",\n]/.test(s)) return '"' + s.replace(/"/g,'""') + '"';
   return s;
+}
+
+function startOfMonth(date){
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function endOfMonth(date){
+  return new Date(date.getFullYear(), date.getMonth() + 1, 0);
+}
+
+function formatMonthLabel(date){
+  return `${MONTH_NAMES[date.getMonth()]} ${date.getFullYear()}`;
+}
+
+function formatFullDate(dateStr){
+  const d = toDate(dateStr);
+  if(Number.isNaN(d.getTime())) return dateStr;
+  return d.toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+}
+
+function generateRecurringDates(baseDateStr, intervalDays, rangeStartStr, rangeEndStr){
+  const results = new Set();
+  if(!intervalDays || intervalDays <= 0) return [];
+  const start = toDate(rangeStartStr);
+  const end = toDate(rangeEndStr);
+  const step = intervalDays * 86400000;
+  let base = toDate(baseDateStr || rangeStartStr);
+  if(Number.isNaN(base.getTime())) return [];
+
+  while(base > end){
+    base = new Date(base.getTime() - step);
+  }
+
+  let forward = new Date(base.getTime() + step);
+  while(forward <= end){
+    if(forward >= start){
+      results.add(forward.toISOString().slice(0,10));
+    }
+    forward = new Date(forward.getTime() + step);
+  }
+
+  let backward = new Date(base.getTime() - step);
+  while(backward >= start){
+    results.add(backward.toISOString().slice(0,10));
+    backward = new Date(backward.getTime() - step);
+  }
+
+  return Array.from(results).sort();
 }
 
 /* Plants */
@@ -1469,6 +1553,48 @@ $("#btnExportCSV").addEventListener("click", ()=>{
 });
 
 /* Dashboard Tasks */
+function addManualTask(data){
+  const entry = normalizeTask({ ...data, id: uid(), createdAt: new Date().toISOString() });
+  if(!entry) return;
+  store.tasks.push(entry);
+  saveStore();
+}
+
+function removeManualTask(id){
+  const before = store.tasks.length;
+  store.tasks = store.tasks.filter(task=>task.id !== id);
+  if(store.tasks.length !== before){
+    saveStore();
+  }
+}
+
+function setupTaskForm(formId, fields){
+  const form = $("#" + formId);
+  if(!form) return;
+  const { title, date, icon, notes } = fields;
+  const reset = ()=>{
+    form.reset();
+    if(date) date.value = todayStr();
+    if(notes) notes.value = "";
+  };
+  reset();
+  form.addEventListener("submit", e=>{
+    e.preventDefault();
+    const payload = {
+      title: title?.value.trim() || "",
+      date: date?.value || "",
+      icon: icon?.value || "📌",
+      notes: notes?.value.trim() || ""
+    };
+    if(!payload.title || !payload.date){
+      alert("Please provide both a title and date.");
+      return;
+    }
+    addManualTask(payload);
+    reset();
+  });
+}
+
 function nextDue(baseDate, intervalDays){
   const start = toDate(baseDate);
   const next = new Date(start.getTime() + intervalDays*86400000);
@@ -1484,20 +1610,29 @@ function renderTasks(){
     if(c.waterInterval>0){
       const last = c._lastWater || c.acquired || today;
       const due = nextDue(last, c.waterInterval);
-      items.push({type:"Water", plant:c, due});
+      items.push({type:"Water", plant:c, due, source:"care"});
     }
     if(c.fertInterval>0){
       const last = c._lastFert || c.acquired || today;
       const due = nextDue(last, c.fertInterval);
-      items.push({type:"Fertilize", plant:c, due});
+      items.push({type:"Fertilize", plant:c, due, source:"care"});
     }
+  });
+  store.tasks.forEach(task=>{
+    if(!task?.date) return;
+    items.push({ type: "Manual", task, due: task.date, source: "manual" });
   });
 
   // Filter into upcoming window or overdue
   const now = toDate(today);
   const until = new Date(now.getTime() + windowDays*86400000);
   const inWindow = items.filter(x=> toDate(x.due) <= until );
-  inWindow.sort((a,b)=> a.due.localeCompare(b.due));
+  inWindow.sort((a,b)=>{
+    const dateDiff = a.due.localeCompare(b.due);
+    if(dateDiff!==0) return dateDiff;
+    if(a.source===b.source) return 0;
+    return a.source === "care" ? -1 : 1;
+  });
 
   list.innerHTML = "";
   if(inWindow.length===0){
@@ -1513,18 +1648,38 @@ function renderTasks(){
     const overdue = toDate(it.due) < now;
     if(overdue) li.classList.add("overdue");
     const left = document.createElement("div");
-    left.innerHTML = `<strong>${escapeHtml(it.type)}</strong> — ${escapeHtml(plantLabel(it.plant))} <span class="badge">${escapeHtml(it.due)}${overdue?" · overdue":""}</span>`;
+    const heading = document.createElement("div");
+    if(it.source === "manual"){
+      heading.innerHTML = `<strong>${escapeHtml(it.task.title)}</strong> <span class="badge">${escapeHtml(it.due)}${overdue?" · overdue":""}</span>`;
+      left.appendChild(heading);
+      if(it.task.notes){
+        const notes = document.createElement("div");
+        notes.className = "muted";
+        notes.textContent = it.task.notes;
+        left.appendChild(notes);
+      }
+    }else{
+      heading.innerHTML = `<strong>${escapeHtml(it.type)}</strong> — ${escapeHtml(plantLabel(it.plant))} <span class="badge">${escapeHtml(it.due)}${overdue?" · overdue":""}</span>`;
+      left.appendChild(heading);
+    }
     const right = document.createElement("div");
     right.className = "row-actions";
     const doneBtn = document.createElement("button");
-    doneBtn.textContent = "Mark done";
-    doneBtn.addEventListener("click", ()=>{
-      const action = it.type==="Water" ? "Watered" : "Fertilized";
-      store.care.push({ id: uid(), cultivarId: it.plant.id, date: todayStr(), action, notes: "" });
-      if(it.type==="Water") it.plant._lastWater = todayStr();
-      if(it.type==="Fertilize") it.plant._lastFert = todayStr();
-      saveStore();
-    });
+    if(it.source === "manual"){
+      doneBtn.textContent = "Mark complete";
+      doneBtn.addEventListener("click", ()=>{
+        removeManualTask(it.task.id);
+      });
+    }else{
+      doneBtn.textContent = "Mark done";
+      doneBtn.addEventListener("click", ()=>{
+        const action = it.type==="Water" ? "Watered" : "Fertilized";
+        store.care.push({ id: uid(), cultivarId: it.plant.id, date: todayStr(), action, notes: "" });
+        if(it.type==="Water") it.plant._lastWater = todayStr();
+        if(it.type==="Fertilize") it.plant._lastFert = todayStr();
+        saveStore();
+      });
+    }
     right.appendChild(doneBtn);
     li.append(left, right);
     list.appendChild(li);
@@ -1532,52 +1687,298 @@ function renderTasks(){
 }
 $("#filterTaskWindow").addEventListener("change", renderTasks);
 
-/* Calendar */
-function renderCalendar(){
-  const cal = $("#calendar");
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = now.getMonth();
-  const first = new Date(y,m,1);
-  const startDay = first.getDay(); // 0=Sun
-  const last = new Date(y, m+1, 0).getDate();
-  cal.innerHTML = "";
-
-  // Build map of due items by date
+function collectCalendarEntries(rangeStart, rangeEnd){
   const map = {};
-  store.cultivars.forEach(c=>{
-    const wd = nextDue(c._lastWater || c.acquired || todayStr(), c.waterInterval||7);
-    const fd = nextDue(c._lastFert || c.acquired || todayStr(), c.fertInterval||30);
-    [ {d:wd, tag:"Water", plant:c}, {d:fd, tag:"Fertilize", plant:c} ].forEach(x=>{
-      const d = x.d;
-      if(d.slice(0,7) !== `${y}-${String(m+1).padStart(2,'0')}`) return; // only this month
-      (map[d] ??= []).push(x);
+  const add = (date, entry)=>{
+    if(date < rangeStart || date > rangeEnd) return;
+    (map[date] ??= []).push(entry);
+  };
+
+  store.tasks.forEach(task=>{
+    if(!task?.date) return;
+    const subtitle = task.notes || "";
+    const description = subtitle ? "" : "Manual task";
+    add(task.date, {
+      type: "manual",
+      order: CALENDAR_ENTRY_ORDER.manual,
+      icon: task.icon || "📌",
+      title: task.title,
+      subtitle,
+      description,
+      taskId: task.id,
+      source: "manual"
     });
   });
 
-  // Empty cells for offset
-  for(let i=0;i<startDay;i++){
-    const cell = document.createElement("div");
-    cell.className = "cal-cell";
-    cal.appendChild(cell);
-  }
-  for(let d=1; d<=last; d++){
-    const cell = document.createElement("div");
-    cell.className = "cal-cell";
-    const dateStr = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const label = document.createElement("div");
-    label.className="cal-date";
-    label.textContent = d;
-    cell.appendChild(label);
-    const items = map[dateStr] || [];
-    items.forEach(it=>{
-      const tag = document.createElement("div");
-      tag.className = "tag";
-      tag.textContent = `${it.tag}: ${plantLabel(it.plant)}`;
-      cell.appendChild(tag);
+  store.cultivars.forEach(c=>{
+    if(!c) return;
+    const waterInterval = Number(c.waterInterval) || 0;
+    if(waterInterval > 0){
+      const base = c._lastWater || c.acquired || todayStr();
+      generateRecurringDates(base, waterInterval, rangeStart, rangeEnd).forEach(date=>{
+        add(date, {
+          type: "care-water",
+          order: CALENDAR_ENTRY_ORDER["care-water"],
+          icon: CALENDAR_ICONS.water,
+          title: `Water ${plantLabel(c)}`,
+          subtitle: `Every ${waterInterval} days`,
+          description: `Recurring watering for ${plantLabel(c)}.`,
+          plantId: c.id,
+          source: "care"
+        });
+      });
+    }
+    const fertInterval = Number(c.fertInterval) || 0;
+    if(fertInterval > 0){
+      const base = c._lastFert || c.acquired || todayStr();
+      generateRecurringDates(base, fertInterval, rangeStart, rangeEnd).forEach(date=>{
+        add(date, {
+          type: "care-fertilize",
+          order: CALENDAR_ENTRY_ORDER["care-fertilize"],
+          icon: CALENDAR_ICONS.fertilize,
+          title: `Fertilize ${plantLabel(c)}`,
+          subtitle: `Every ${fertInterval} days`,
+          description: `Recurring fertilizing for ${plantLabel(c)}.`,
+          plantId: c.id,
+          source: "care"
+        });
+      });
+    }
+  });
+
+  store.projects.forEach(project=>{
+    if(!Array.isArray(project?.timeline)) return;
+    project.timeline.forEach(event=>{
+      const date = event?.date ? String(event.date) : "";
+      if(!date) return;
+      if(date < rangeStart || date > rangeEnd) return;
+      const note = String(event.note ?? "").trim();
+      add(date, {
+        type: "project",
+        order: CALENDAR_ENTRY_ORDER.project,
+        icon: CALENDAR_ICONS.project,
+        title: project.name,
+        subtitle: note || "Timeline milestone",
+        description: `Project milestone for ${project.name}.`,
+        projectId: project.id,
+        timelineId: event.id,
+        source: "project"
+      });
     });
-    cal.appendChild(cell);
+  });
+
+  Object.values(map).forEach(list=>{
+    list.sort((a,b)=>{
+      const orderDiff = (a.order ?? 0) - (b.order ?? 0);
+      if(orderDiff!==0) return orderDiff;
+      return a.title.localeCompare(b.title);
+    });
+  });
+
+  return map;
+}
+
+/* Calendar */
+function renderCalendar(){
+  const monthLabel = $("#calendarMonthLabel");
+  const weekdaysRow = $("#calendarWeekdays");
+  const grid = $("#calendarGrid");
+  if(!monthLabel || !weekdaysRow || !grid) return;
+
+  const monthStart = startOfMonth(calendarViewDate);
+  const monthEnd = endOfMonth(calendarViewDate);
+  const startDay = monthStart.getDay();
+  const daysInMonth = monthEnd.getDate();
+
+  monthLabel.textContent = formatMonthLabel(monthStart);
+
+  weekdaysRow.innerHTML = "";
+  WEEKDAYS_SHORT.forEach(day=>{
+    const el = document.createElement("div");
+    el.className = "cal-weekday";
+    el.textContent = day;
+    weekdaysRow.appendChild(el);
+  });
+
+  const rangeStart = monthStart.toISOString().slice(0,10);
+  const rangeEnd = monthEnd.toISOString().slice(0,10);
+  const entriesMap = collectCalendarEntries(rangeStart, rangeEnd);
+
+  grid.innerHTML = "";
+  for(let i=0;i<startDay;i++){
+    const empty = document.createElement("div");
+    empty.className = "cal-cell cal-empty";
+    grid.appendChild(empty);
   }
+
+  for(let day=1; day<=daysInMonth; day++){
+    const currentDate = new Date(monthStart.getFullYear(), monthStart.getMonth(), day);
+    const dateStr = currentDate.toISOString().slice(0,10);
+    const entries = entriesMap[dateStr] ? entriesMap[dateStr].slice() : [];
+    const cell = document.createElement("button");
+    cell.type = "button";
+    cell.className = "cal-cell";
+    cell.dataset.date = dateStr;
+
+    if(dateStr === todayStr()){
+      cell.classList.add("is-today");
+    }
+
+    const label = document.createElement("div");
+    label.className = "cal-date";
+    label.textContent = day;
+    cell.appendChild(label);
+
+    if(entries.length){
+      cell.classList.add("has-items");
+      const icons = document.createElement("div");
+      icons.className = "cal-icons";
+      entries.slice(0,4).forEach(entry=>{
+        const span = document.createElement("span");
+        span.className = "cal-icon";
+        span.textContent = entry.icon;
+        icons.appendChild(span);
+      });
+      cell.appendChild(icons);
+
+      const summary = document.createElement("div");
+      summary.className = "cal-summary";
+      summary.innerHTML = `<strong>${escapeHtml(entries[0].title)}</strong>`;
+      if(entries[0].subtitle){
+        const sub = document.createElement("div");
+        sub.className = "cal-subtitle";
+        sub.textContent = entries[0].subtitle;
+        summary.appendChild(sub);
+      }
+      cell.appendChild(summary);
+
+      if(entries.length > 4){
+        const more = document.createElement("div");
+        more.className = "cal-more";
+        more.textContent = `+${entries.length - 4} more`;
+        cell.appendChild(more);
+      }
+    }
+
+    cell.addEventListener("click", ()=> openDayDetail(dateStr));
+    cell.addEventListener("keydown", evt=>{
+      if(evt.key === "Enter" || evt.key === " "){
+        evt.preventDefault();
+        openDayDetail(dateStr);
+      }
+    });
+    grid.appendChild(cell);
+  }
+
+  const totalCells = startDay + daysInMonth;
+  const trailing = (7 - (totalCells % 7)) % 7;
+  for(let i=0;i<trailing;i++){
+    const empty = document.createElement("div");
+    empty.className = "cal-cell cal-empty";
+    grid.appendChild(empty);
+  }
+}
+
+function openDayDetail(dateStr){
+  const dialog = $("#dayDetailDialog");
+  const content = $("#dayDetailContent");
+  const title = $("#dayDetailTitle");
+  if(!dialog || !content) return;
+
+  dialog.dataset.date = dateStr;
+  if(title) title.textContent = formatFullDate(dateStr);
+
+  content.innerHTML = "";
+  const entriesMap = collectCalendarEntries(dateStr, dateStr);
+  const entries = entriesMap[dateStr] ? entriesMap[dateStr].slice() : [];
+
+  if(entries.length===0){
+    const empty = document.createElement("p");
+    empty.className = "muted";
+    empty.textContent = "No scheduled items for this day. Add a task to get started.";
+    content.appendChild(empty);
+  }else{
+    entries.forEach(entry=>{
+      const row = document.createElement("div");
+      row.className = "day-entry";
+      const icon = document.createElement("div");
+      icon.className = "day-entry-icon";
+      icon.textContent = entry.icon;
+      row.appendChild(icon);
+
+      const body = document.createElement("div");
+      body.className = "day-entry-body";
+      const heading = document.createElement("h4");
+      heading.textContent = entry.title;
+      body.appendChild(heading);
+      const details = [];
+      if(entry.subtitle) details.push(entry.subtitle);
+      if(entry.description && entry.description !== entry.subtitle) details.push(entry.description);
+      details.forEach(text=>{
+        if(!text) return;
+        const p = document.createElement("p");
+        p.textContent = text;
+        body.appendChild(p);
+      });
+      row.appendChild(body);
+
+      if(entry.source === "manual"){
+        const actions = document.createElement("div");
+        actions.className = "day-entry-actions";
+        const doneBtn = document.createElement("button");
+        doneBtn.className = "secondary";
+        doneBtn.textContent = "Mark complete";
+        doneBtn.addEventListener("click", ()=>{
+          removeManualTask(entry.taskId);
+          dialog.close();
+        });
+        actions.appendChild(doneBtn);
+        row.appendChild(actions);
+      }
+
+      content.appendChild(row);
+    });
+  }
+
+  if(typeof dialog.showModal === "function"){
+    dialog.showModal();
+  }
+}
+
+const calendarPrevBtn = $("#calendarPrev");
+if(calendarPrevBtn){
+  calendarPrevBtn.addEventListener("click", ()=>{
+    calendarViewDate = startOfMonth(new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth() - 1, 1));
+    renderCalendar();
+  });
+}
+const calendarNextBtn = $("#calendarNext");
+if(calendarNextBtn){
+  calendarNextBtn.addEventListener("click", ()=>{
+    calendarViewDate = startOfMonth(new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth() + 1, 1));
+    renderCalendar();
+  });
+}
+
+const dayDetailDialog = $("#dayDetailDialog");
+const dayDetailClose = $("#dayDetailClose");
+if(dayDetailClose && dayDetailDialog){
+  dayDetailClose.addEventListener("click", ()=> dayDetailDialog.close());
+}
+const dayDetailAddTask = $("#dayDetailAddTask");
+if(dayDetailAddTask && dayDetailDialog){
+  dayDetailAddTask.addEventListener("click", ()=>{
+    const date = dayDetailDialog.dataset.date || todayStr();
+    dayDetailDialog.close();
+    const calendarDateInput = $("#calTaskDate");
+    if(calendarDateInput){
+      calendarDateInput.value = date;
+      const calendarTitle = $("#calTaskTitle");
+      if(calendarTitle) calendarTitle.focus();
+    }
+    const dashDateInput = $("#dashTaskDate");
+    if(dashDateInput) dashDateInput.value = date;
+  });
 }
 
 /* Settings: Import/Export/Erase */
@@ -1608,7 +2009,7 @@ $("#fileImport").addEventListener("change", async (e)=>{
 });
 $("#btnErase").addEventListener("click", ()=>{
   if(confirm("Erase all plants, care history, and hybrid projects? This cannot be undone.")){
-    store = { cultivars: [], care: [], projects: [] };
+    store = { cultivars: [], care: [], projects: [], tasks: [] };
     selectedCultivarId = null;
     selectedProjectId = null;
     saveStore();
@@ -1621,6 +2022,19 @@ $("#btnLoadSample").addEventListener("click", ()=>{
     selectedProjectId = null;
     saveStore();
   }).catch(()=> alert("Could not load sample data."));
+});
+
+setupTaskForm("dashboardTaskForm", {
+  title: $("#dashTaskTitle"),
+  date: $("#dashTaskDate"),
+  icon: $("#dashTaskIcon"),
+  notes: $("#dashTaskNotes")
+});
+setupTaskForm("calendarTaskForm", {
+  title: $("#calTaskTitle"),
+  date: $("#calTaskDate"),
+  icon: $("#calTaskIcon"),
+  notes: $("#calTaskNotes")
 });
 
 /* Initial Render */

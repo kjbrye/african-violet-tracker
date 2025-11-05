@@ -72,6 +72,33 @@
             <button type="submit">Add Care Entry</button>
           </form>
         </div>
+        <div class="card">
+          <h2>Quick Add Task</h2>
+          <form id="dashboardTaskForm" class="form-grid form-grid-compact">
+            <label>Title
+              <input id="dashTaskTitle" required placeholder="What needs attention?" />
+            </label>
+            <label>Due Date
+              <input type="date" id="dashTaskDate" required />
+            </label>
+            <label>Icon
+              <select id="dashTaskIcon">
+                <option value="📌">📌 General</option>
+                <option value="🪴">🪴 Planting</option>
+                <option value="🧺">🧺 Maintenance</option>
+                <option value="🧪">🧪 Experiment</option>
+                <option value="📝">📝 Notes</option>
+                <option value="⭐">⭐ Milestone</option>
+              </select>
+            </label>
+            <label>Notes
+              <input id="dashTaskNotes" placeholder="Optional details" />
+            </label>
+            <div class="form-actions">
+              <button type="submit">Add Task</button>
+            </div>
+          </form>
+        </div>
       </div>
     </section>
 
@@ -272,9 +299,44 @@
 
     <!-- CALENDAR -->
     <section id="tab-calendar" class="tab" role="region" aria-label="Calendar">
+      <div class="card calendar-card">
+        <div class="calendar-heading">
+          <h2>Calendar</h2>
+          <div class="calendar-controls" role="group" aria-label="Change month">
+            <button type="button" id="calendarPrev" aria-label="Previous month">&#8249;</button>
+            <div id="calendarMonthLabel" aria-live="polite"></div>
+            <button type="button" id="calendarNext" aria-label="Next month">&#8250;</button>
+          </div>
+        </div>
+        <div class="calendar-weekdays" id="calendarWeekdays"></div>
+        <div class="calendar-grid" id="calendarGrid"></div>
+      </div>
       <div class="card">
-        <h2>Watering & Fertilizer Planner</h2>
-        <div class="calendar" id="calendar"></div>
+        <h2>Add Calendar Task</h2>
+        <form id="calendarTaskForm" class="form-grid form-grid-compact">
+          <label>Title
+            <input id="calTaskTitle" required placeholder="Describe the task" />
+          </label>
+          <label>Date
+            <input type="date" id="calTaskDate" required />
+          </label>
+          <label>Icon
+            <select id="calTaskIcon">
+              <option value="📌">📌 General</option>
+              <option value="🪴">🪴 Planting</option>
+              <option value="🧺">🧺 Maintenance</option>
+              <option value="🧪">🧪 Experiment</option>
+              <option value="📝">📝 Notes</option>
+              <option value="⭐">⭐ Milestone</option>
+            </select>
+          </label>
+          <label>Notes
+            <input id="calTaskNotes" placeholder="Optional details" />
+          </label>
+          <div class="form-actions">
+            <button type="submit">Add Task</button>
+          </div>
+        </form>
       </div>
     </section>
 
@@ -424,6 +486,18 @@
   </footer>
 
   <input id="fileImport" type="file" accept="application/json" hidden />
+  <dialog id="dayDetailDialog">
+    <div class="day-dialog">
+      <div class="day-dialog-header">
+        <h3 id="dayDetailTitle"></h3>
+        <button type="button" id="dayDetailClose" aria-label="Close day details">&times;</button>
+      </div>
+        <div id="dayDetailContent" class="day-dialog-content"></div>
+      <div class="day-dialog-footer">
+        <button type="button" id="dayDetailAddTask" class="secondary">Add Task for this day</button>
+      </div>
+    </div>
+  </dialog>
   <script src="app.js"></script>
 </body>
 </html>
