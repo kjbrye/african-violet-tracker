@@ -490,9 +490,12 @@ dialog::backdrop {
   color: var(--forest);
 }
 
-.card-plant-nickname {
-  font-size: 1.2rem;
-  color: rgba(45, 69, 47, 0.7);
+.card-plant-subtitle {
+  font-family: var(--font-heading);
+  font-size: 1.18rem;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--forest);
 }
 
 .card-plant-meta {
@@ -796,6 +799,14 @@ footer {
 
 .profile-summary .muted {
   margin-top: 0.3rem;
+}
+
+.profile-subtitle {
+  font-family: var(--font-heading);
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--forest);
 }
 
 .profile-badges {
