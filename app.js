@@ -441,6 +441,8 @@ function renderPlantProfile(){
   const { src: photoSrc, placeholder } = plantPhoto(plant);
   const photoClasses = ["profile-photo", placeholder ? "placeholder" : ""].filter(Boolean).join(" ");
   const photo = `<img src="${photoSrc}" alt="${escapeHtml(plantLabel(plant))}" class="${photoClasses}" />`;
+  const title = plant.nickname || plant.cultivarName || "Unnamed plant";
+  const subtitle = plant.cultivarName && plant.cultivarName !== title ? plant.cultivarName : "";
 
   content.innerHTML = `
     <div class="profile-header">
@@ -448,6 +450,7 @@ function renderPlantProfile(){
       <div class="profile-summary">
         <h3>${escapeHtml(title)}</h3>
         ${subtitle ? `<div class="profile-subtitle">${escapeHtml(subtitle)}</div>` : ""}
+        ${subtitle ? `<div class="profile-subtitle muted">${escapeHtml(subtitle)}</div>` : ""}
         ${plant.notes ? `<p>${escapeHtml(plant.notes)}</p>` : `<p class="muted">No notes added.</p>`}
         ${highlight.length ? `<div class="muted">${highlight.join(" · ")}</div>` : ""}
         ${badges.length ? `<div class="profile-badges">${badges.join("")}</div>` : ""}
