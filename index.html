@@ -10,23 +10,87 @@
     href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&display=swap"
     rel="stylesheet"
   />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
   <link rel="stylesheet" href="style.css" />
   <meta name="theme-color" content="#E5D7C4">
 </head>
 <body>
-  <header>
-    <div class="site-brand">
-      <img src="logo.svg" alt="Saintpaulia Studio logo" class="site-logo" />
-      <h1>Saintpaulia Studio</h1>
+  <header class="app-header">
+    <div class="header-top">
+      <div class="site-brand">
+        <img src="logo.svg" alt="Saintpaulia Studio logo" class="site-logo" />
+        <div class="brand-copy">
+          <h1>Saintpaulia Studio</h1>
+          <p class="brand-subtitle">Curate, nurture, and hybridize African violets with intention.</p>
+        </div>
+      </div>
+      <div class="header-intro">
+        <p class="header-kicker">Your living collection, distilled into calm clarity.</p>
+        <div class="header-stats" aria-live="polite">
+          <div class="stat-chip">
+            <span class="chip-icon" aria-hidden="true">🪴</span>
+            <div class="chip-body">
+              <span class="chip-label">Collection</span>
+              <span class="chip-value" id="statPlantCount">0 plants</span>
+            </div>
+          </div>
+          <div class="stat-chip">
+            <span class="chip-icon" aria-hidden="true">🌿</span>
+            <div class="chip-body">
+              <span class="chip-label">Care History</span>
+              <span class="chip-value" id="statCareCount">0 logs</span>
+            </div>
+          </div>
+          <div class="stat-chip">
+            <span class="chip-icon" aria-hidden="true">🧬</span>
+            <div class="chip-body">
+              <span class="chip-label">Active Projects</span>
+              <span class="chip-value" id="statProjectCount">0</span>
+            </div>
+          </div>
+          <div class="stat-chip stat-chip--wide">
+            <span class="chip-icon" aria-hidden="true">🗓️</span>
+            <div class="chip-body">
+              <span class="chip-label">Next Task</span>
+              <span class="chip-value" id="statNextTask">Nothing scheduled</span>
+              <span class="chip-subvalue" id="statNextTaskDate"></span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
-    <nav>
-      <button class="nav-btn active" data-tab="tab-dashboard" aria-controls="tab-dashboard" aria-selected="true">Dashboard</button>
-      <button class="nav-btn" data-tab="tab-cultivars" aria-controls="tab-cultivars" aria-selected="false">Plants</button>
-      <button class="nav-btn" data-tab="tab-hybrid" aria-controls="tab-hybrid" aria-selected="false">Hybrid Projects</button>
-      <button class="nav-btn" data-tab="tab-care" aria-controls="tab-care" aria-selected="false">Care Log</button>
-      <button class="nav-btn" data-tab="tab-calendar" aria-controls="tab-calendar" aria-selected="false">Calendar</button>
-      <button class="nav-btn" data-tab="tab-guide" aria-controls="tab-guide" aria-selected="false">Care Guide</button>
-      <button class="nav-btn" data-tab="tab-settings" aria-controls="tab-settings" aria-selected="false">Settings</button>
+    <nav class="app-nav" aria-label="Primary">
+      <button class="nav-btn active" data-tab="tab-dashboard" aria-controls="tab-dashboard" aria-selected="true">
+        <span class="nav-icon" aria-hidden="true">🏠</span>
+        <span class="nav-label">Dashboard</span>
+      </button>
+      <button class="nav-btn" data-tab="tab-cultivars" aria-controls="tab-cultivars" aria-selected="false">
+        <span class="nav-icon" aria-hidden="true">🪴</span>
+        <span class="nav-label">Plants</span>
+      </button>
+      <button class="nav-btn" data-tab="tab-hybrid" aria-controls="tab-hybrid" aria-selected="false">
+        <span class="nav-icon" aria-hidden="true">🧬</span>
+        <span class="nav-label">Hybrid Projects</span>
+      </button>
+      <button class="nav-btn" data-tab="tab-care" aria-controls="tab-care" aria-selected="false">
+        <span class="nav-icon" aria-hidden="true">💧</span>
+        <span class="nav-label">Care Log</span>
+      </button>
+      <button class="nav-btn" data-tab="tab-calendar" aria-controls="tab-calendar" aria-selected="false">
+        <span class="nav-icon" aria-hidden="true">🗓️</span>
+        <span class="nav-label">Calendar</span>
+      </button>
+      <button class="nav-btn" data-tab="tab-guide" aria-controls="tab-guide" aria-selected="false">
+        <span class="nav-icon" aria-hidden="true">📚</span>
+        <span class="nav-label">Care Guide</span>
+      </button>
+      <button class="nav-btn" data-tab="tab-settings" aria-controls="tab-settings" aria-selected="false">
+        <span class="nav-icon" aria-hidden="true">⚙️</span>
+        <span class="nav-label">Settings</span>
+      </button>
     </nav>
   </header>
 

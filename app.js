@@ -256,6 +256,11 @@ function formatFullDate(dateStr){
   return d.toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" });
 }
 
+function pluralize(count, singular, plural){
+  const word = count === 1 ? singular : (plural ?? singular + "s");
+  return `${count} ${word}`;
+}
+
 function generateRecurringDates(baseDateStr, intervalDays, rangeStartStr, rangeEndStr){
   const results = new Set();
   if(!intervalDays || intervalDays <= 0) return [];
@@ -2039,6 +2044,7 @@ setupTaskForm("calendarTaskForm", {
 
 /* Initial Render */
 function renderAll(){
+  updateDashboardStats();
   renderCultivars();
   renderPlantProfile();
   renderProjects();
@@ -2050,6 +2056,63 @@ function renderAll(){
   renderCalendar();
 }
 renderAll();
+
+function updateDashboardStats(){
+  const plantCountEl = $("#statPlantCount");
+  if(plantCountEl){
+    const totalPlants = store.cultivars.length;
+    plantCountEl.textContent = totalPlants ? pluralize(totalPlants, "plant") : "No plants yet";
+  }
+
+  const careCountEl = $("#statCareCount");
+  if(careCountEl){
+    const totalCare = store.care.length;
+    careCountEl.textContent = totalCare ? pluralize(totalCare, "log") : "No logs yet";
+  }
+
+  const projectCountEl = $("#statProjectCount");
+  if(projectCountEl){
+    const activeProjects = store.projects.filter(project => project.status !== "archived").length;
+    projectCountEl.textContent = activeProjects ? pluralize(activeProjects, "project") : "No active projects";
+  }
+
+  const nextTaskEl = $("#statNextTask");
+  const nextTaskDateEl = $("#statNextTaskDate");
+  if(nextTaskEl){
+    const tasksWithDate = store.tasks.filter(task => task.date).sort((a, b) => a.date.localeCompare(b.date));
+    const today = todayStr();
+    const upcomingTask = tasksWithDate.find(task => task.date >= today);
+    const fallbackTask = tasksWithDate[0] || store.tasks[0];
+    const nextTask = upcomingTask || fallbackTask || null;
+
+    if(nextTask){
+      nextTaskEl.textContent = `${nextTask.icon || "📌"} ${nextTask.title}`;
+      if(nextTaskDateEl){
+        if(nextTask.date){
+          const formatted = formatFullDate(nextTask.date);
+          let statusLabel = "";
+          if(nextTask.date < today){
+            statusLabel = "Overdue";
+          }else if(nextTask.date === today){
+            statusLabel = "Due today";
+          }
+          nextTaskDateEl.textContent = statusLabel ? `${statusLabel} · ${formatted}` : formatted;
+          nextTaskDateEl.style.display = "block";
+        }else{
+          nextTaskDateEl.textContent = "";
+          nextTaskDateEl.style.display = "none";
+        }
+      }
+    }else{
+      nextTaskEl.textContent = "Nothing scheduled";
+      if(nextTaskDateEl){
+        nextTaskDateEl.textContent = "";
+        nextTaskDateEl.style.display = "none";
+      }
+    }
+  }
+}
+
 function plantPhoto(plant){
   if(plant?.photo){
     return { src: plant.photo, placeholder: false };
