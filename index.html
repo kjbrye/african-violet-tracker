@@ -159,7 +159,7 @@
             </select>
           </label>
           <label>Variegation <input id="cvVariegation" placeholder="e.g., Tommie Lou, white edge" /></label>
-          <label>Pot Size (in) <input id="cvPot" type="number" step="0.25" min="1" max="12" /></label>
+          <label>Pot Size (<span id="potSizeUnitLabel">in</span>) <input id="cvPot" type="number" step="0.25" min="1" max="12" /></label>
           <label>Location <input id="cvLocation" placeholder="e.g., Shelf A, NE window" /></label>
           <label>Acquired <input id="cvAcquired" type="date" /></label>
           <label>Source <input id="cvSource" placeholder="Vendor, leaf, trade…" /></label>
@@ -389,7 +389,7 @@
           <article>
             <h3>Temperature & Grooming</h3>
             <ul>
-              <li>Ideal temperatures range 65–75&nbsp;°F (18–24&nbsp;°C); keep above 60&nbsp;°F overnight.</li>
+              <li>Ideal temperatures range <span id="careGuideComfortRange">65–75&nbsp;°F</span>; keep above <span id="careGuideMinTemp">60&nbsp;°F</span> overnight.</li>
               <li>Remove spent blooms and yellowed leaves to encourage new growth.</li>
               <li>Inspect weekly for mealybugs, thrips, and mites; isolate and treat promptly.</li>
             </ul>
@@ -479,6 +479,14 @@
 
     <!-- SETTINGS -->
     <section id="tab-settings" class="tab" role="region" aria-label="Settings">
+      <div class="card">
+        <h2>Preferences</h2>
+        <p>Choose your preferred unit system for plant measurements and temperature guidance.</p>
+        <div id="unitSwitch" class="unit-switch" role="group" aria-label="Unit system">
+          <button type="button" class="unit-switch-button" data-unit="imperial" aria-pressed="false">Imperial · °F &amp; inches</button>
+          <button type="button" class="unit-switch-button" data-unit="metric" aria-pressed="false">Metric · °C &amp; cm</button>
+        </div>
+      </div>
       <div class="card">
         <h2>Data</h2>
         <p class="card-subtitle">Safeguard your collection by exporting backups and bringing records with you.</p>
