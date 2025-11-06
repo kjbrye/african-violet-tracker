@@ -36,6 +36,7 @@
       <div class="grid-2">
         <div class="card">
           <h2>Upcoming & Overdue Tasks</h2>
+          <p class="card-subtitle">Spot looming chores and any tasks that need a quick catch-up before plants notice.</p>
           <div class="toolbar">
             <label>Show: 
               <select id="filterTaskWindow">
@@ -49,6 +50,7 @@
         </div>
         <div class="card">
           <h2>Quick Add Care</h2>
+          <p class="card-subtitle">Log everyday watering, feeding, and upkeep in just a few taps to keep history current.</p>
           <form id="quickCareForm" class="form-grid">
             <label>Plant
               <select id="qcCultivar" required></select>
@@ -74,6 +76,7 @@
         </div>
         <div class="card">
           <h2>Quick Add Task</h2>
+          <p class="card-subtitle">Capture reminders and future plans without leaving your dashboard workspace.</p>
           <form id="dashboardTaskForm" class="form-grid form-grid-compact">
             <label>Title
               <input id="dashTaskTitle" required placeholder="What needs attention?" />
@@ -105,6 +108,8 @@
     <!-- PLANTS -->
     <section id="tab-cultivars" class="tab" role="region" aria-label="Plants">
       <div class="card">
+        <h2>Plant Collection</h2>
+        <p class="card-subtitle">Search, filter, and explore every cultivar in your studio from one tidy view.</p>
         <div class="toolbar">
           <input id="cultivarSearch" type="search" placeholder="Search cultivar, nickname, blossom, leaf, location…" />
           <div class="view-switch" role="group" aria-label="Plant layout view">
@@ -117,6 +122,8 @@
       </div>
 
       <div id="plantProfile" class="card hidden" role="region" aria-label="Plant profile">
+        <h2>Plant Profile</h2>
+        <p class="card-subtitle">Dive into details, care cadence, and history for the cultivar you're reviewing.</p>
         <div class="profile-top">
           <button id="profileBack" class="secondary">&larr; Back to plants</button>
           <div class="profile-top-actions">
@@ -301,7 +308,10 @@
     <section id="tab-calendar" class="tab" role="region" aria-label="Calendar">
       <div class="card calendar-card">
         <div class="calendar-heading">
-          <h2>Calendar</h2>
+          <div class="calendar-heading-main">
+            <h2>Calendar</h2>
+            <p class="card-subtitle">Map tasks across the month and balance routines with bloom goals.</p>
+          </div>
           <div class="calendar-controls" role="group" aria-label="Change month">
             <button type="button" id="calendarPrev" aria-label="Previous month">&#8249;</button>
             <div id="calendarMonthLabel" aria-live="polite"></div>
@@ -313,6 +323,7 @@
       </div>
       <div class="card">
         <h2>Add Calendar Task</h2>
+        <p class="card-subtitle">Schedule chores, experiments, and bloom checkpoints right onto the grid.</p>
         <form id="calendarTaskForm" class="form-grid form-grid-compact">
           <label>Title
             <input id="calTaskTitle" required placeholder="Describe the task" />
@@ -344,6 +355,7 @@
     <section id="tab-guide" class="tab" role="region" aria-label="African violet care guide">
       <div class="card">
         <h2>African Violet Essentials</h2>
+        <p class="card-subtitle">Keep the core care principles handy whenever you need a quick refresher.</p>
         <p>
           African violets (<em>Saintpaulia</em>) are compact houseplants that reward consistent, gentle care with lush foliage and
           jewel-toned blooms. Use the guide below to tune light, moisture, and nutrition for your collection.
@@ -386,6 +398,7 @@
 
       <div class="card">
         <h2>Foliage Forms</h2>
+        <p class="card-subtitle">Compare leaf textures, variegation patterns, and growth habits at a glance.</p>
         <div class="guide-columns">
           <section>
             <h3>Leaf Texture</h3>
@@ -425,6 +438,7 @@
 
       <div class="card">
         <h2>Flower Types & Sizes</h2>
+        <p class="card-subtitle">Decode bloom shapes, color effects, and size classes to label seedlings accurately.</p>
         <div class="guide-columns">
           <section>
             <h3>Bloom Forms</h3>
@@ -466,6 +480,7 @@
     <section id="tab-settings" class="tab" role="region" aria-label="Settings">
       <div class="card">
         <h2>Data</h2>
+        <p class="card-subtitle">Safeguard your collection by exporting backups and bringing records with you.</p>
         <div class="toolbar">
           <button id="btnImport">Import JSON</button>
           <button id="btnExport">Export JSON</button>
@@ -476,6 +491,7 @@
       </div>
       <div class="card">
         <h2>About</h2>
+        <p class="card-subtitle">A focused, offline workspace tailored to African violet growers.</p>
         <p>Track your <em>Saintpaulia</em> cultivars and care routine. Add plants, log actions, and plan upcoming tasks. No accounts, no ads.</p>
       </div>
     </section>

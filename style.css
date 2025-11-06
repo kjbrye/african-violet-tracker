@@ -180,6 +180,13 @@ main {
   border-color: rgba(255, 255, 255, 0.7);
 }
 
+.card-subtitle {
+  margin: 0 0 1.1rem;
+  color: var(--muted);
+  font-size: 0.98rem;
+  font-weight: 500;
+}
+
 .info-grid {
   display: grid;
   gap: clamp(1.2rem, 3vw, 1.9rem);
@@ -1129,6 +1136,12 @@ dialog::backdrop {
   align-items: center;
   flex-wrap: wrap;
   gap: 1rem;
+}
+
+.calendar-heading-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
 }
 
 .calendar-heading h2 {
