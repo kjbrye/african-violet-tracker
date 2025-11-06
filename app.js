@@ -2656,26 +2656,63 @@ async function ensureSession(){
   }
 }
 function renderAuthUI(session){
-  const s = $("#authStatus"), email = $("#authEmail");
-  const magic = $("#btnMagic"), out = $("#btnSignOut");
+  const s = $("#authStatus"), password = $("#authPassword");
+  const controls = $("#authControls"), out = $("#btnSignOut");
   if(session?.user){
     s.textContent = `Signed in as ${session.user.email}`;
-    if(email) email.style.display="none";
-    if(magic) magic.style.display="none";
+    if(controls) controls.style.display="none";
     if(out) out.style.display="";
+    if(password) password.value="";
   }
   else {
     s.textContent="Not signed in";
-    if(email) email.style.display="";
-    if(magic) magic.style.display="";
+    if(controls) controls.style.display="";
     if(out) out.style.display="none";
+    if(password) password.value="";
   }
 }
-$("#btnMagic").addEventListener("click", async ()=>{
+$("#btnSignIn").addEventListener("click", async (evt)=>{
+  evt.preventDefault();
+  if(typeof supabase === "undefined") return alert("Supabase is not configured.");
   const email = $("#authEmail").value.trim();
-  if(!email) return alert("Enter email");
-  const { error } = await supabase.auth.signInWithOtp({ email });
-  if(error) alert(error.message); else alert("Check your email for the sign-in link.");
+  const password = $("#authPassword").value;
+  if(!email || !password) return alert("Enter both email and password.");
+  const btn = evt.currentTarget;
+  btn.disabled = true;
+  try {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if(error){
+      alert(error.message);
+      return;
+    }
+    $("#authPassword").value = "";
+  } finally {
+    btn.disabled = false;
+  }
+});
+$("#btnSignUp").addEventListener("click", async (evt)=>{
+  evt.preventDefault();
+  if(typeof supabase === "undefined") return alert("Supabase is not configured.");
+  const email = $("#authEmail").value.trim();
+  const password = $("#authPassword").value;
+  if(!email || !password) return alert("Enter both email and password.");
+  const btn = evt.currentTarget;
+  btn.disabled = true;
+  try {
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    if(error){
+      alert(error.message);
+      return;
+    }
+    $("#authPassword").value = "";
+    if(data?.session){
+      alert("Account created and signed in!");
+    }else{
+      alert("Account created. Check your email to confirm your address.");
+    }
+  } finally {
+    btn.disabled = false;
+  }
 });
 $("#btnSignOut").addEventListener("click", ()=> supabase.auth.signOut());
 
