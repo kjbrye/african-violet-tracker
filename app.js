@@ -218,6 +218,9 @@ function normalizePlant(plant){
   const fertilizerMethod = String(plant?.fertilizerMethod ?? "").trim();
   const normalized = { ...plant, cultivarName, nickname, fertilizerNpk, fertilizerMethod };
   normalized.pot = normalizeLengthField(plant?.pot);
+  const favoriteRaw = plant?.favorite;
+  const favorite = favoriteRaw === true || favoriteRaw === "true" || favoriteRaw === 1 || favoriteRaw === "1";
+  const normalized = { ...plant, cultivarName, nickname, fertilizerNpk, fertilizerMethod, favorite };
   delete normalized.name;
   return normalized;
 }
@@ -385,6 +388,9 @@ function escapeHtml(str){
   return String(str ?? "").replace(/[&<>"']/g, ch=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[ch]));
 }
 function comparePlants(a,b){
+  const favA = Boolean(a?.favorite);
+  const favB = Boolean(b?.favorite);
+  if(favA !== favB) return favA ? -1 : 1;
   const cult = (a.cultivarName || "").localeCompare(b.cultivarName || "");
   if(cult!==0) return cult;
   return (a.nickname || "").localeCompare(b.nickname || "");
@@ -564,7 +570,8 @@ function saveCultivarFromForm(){
       fertilizerNpk: get("cvFertilizerNpk").trim(),
       fertilizerMethod: get("cvFertilizerMethod").trim(),
       notes: get("cvNotes").trim(),
-      photo: photoData
+      photo: photoData,
+      favorite: existing?.favorite ?? false
     };
     if(!data.cultivarName){ alert("Cultivar/Variety Name is required."); return; }
     if(existing){
@@ -612,6 +619,7 @@ function renderCultivars(){
   list.forEach(c=>{
     const div = document.createElement("div");
     div.className = "card-plant";
+    if(c.favorite) div.classList.add("card-plant--favorite");
     if(cultivarViewMode === "list") div.classList.add("card-plant--list");
     div.setAttribute("tabindex","0");
     div.setAttribute("role","button");
@@ -626,6 +634,17 @@ function renderCultivars(){
     const subtitle = c.cultivarName && c.cultivarName !== title ? c.cultivarName : "";
     const h3 = document.createElement("h3");
     h3.textContent = title;
+    if(c.favorite){
+      const sr = document.createElement("span");
+      sr.className = "sr-only";
+      sr.textContent = "Favorited plant. ";
+      const icon = document.createElement("span");
+      icon.className = "card-plant-favorite-icon";
+      icon.setAttribute("aria-hidden","true");
+      icon.textContent = "★";
+      h3.prepend(icon);
+      h3.prepend(sr);
+    }
     const info = document.createElement("div");
     info.className = "card-plant-info";
     info.appendChild(h3);
@@ -673,6 +692,17 @@ function renderCultivars(){
     }
     const actions = document.createElement("div");
     actions.className = "row-actions card-plant-actions";
+    const favoriteBtn = document.createElement("button");
+    favoriteBtn.type = "button";
+    favoriteBtn.className = "btn-favorite";
+    favoriteBtn.innerHTML = c.favorite ? "★ Favorited" : "☆ Favorite";
+    favoriteBtn.setAttribute("aria-pressed", c.favorite ? "true" : "false");
+    favoriteBtn.setAttribute("aria-label", c.favorite ? `Unfavorite ${plantLabel(c)}` : `Favorite ${plantLabel(c)}`);
+    favoriteBtn.addEventListener("click", (event)=>{
+      event.preventDefault();
+      event.stopPropagation();
+      toggleFavorite(c.id);
+    });
     const edit = document.createElement("button"); edit.textContent = "Edit"; edit.addEventListener("click", ()=>openCultivarDialog(c));
     const del = document.createElement("button"); del.textContent = "Delete"; del.className = "danger"; del.addEventListener("click", ()=>{
       if(confirm(`Delete ${plantLabel(c)}? This removes its upcoming reminders but keeps care history.`)){
@@ -688,7 +718,7 @@ function renderCultivars(){
       $(".nav-btn[data-tab='tab-dashboard']").click();
       $("#qcNotes").focus();
     });
-    actions.append(edit, care, del);
+    actions.append(favoriteBtn, edit, care, del);
     div.append(img, info, actions);
     div.addEventListener("click", (e)=>{
       if(e.target.closest(".row-actions")) return;
@@ -705,6 +735,13 @@ function renderCultivars(){
   });
 }
 $("#cultivarSearch").addEventListener("input", renderCultivars);
+
+function toggleFavorite(id){
+  const plant = store.cultivars.find(c=>c.id===id);
+  if(!plant) return;
+  plant.favorite = !plant.favorite;
+  saveStore();
+}
 
 function closePlantProfile(){
   selectedCultivarId = null;
@@ -736,6 +773,7 @@ function renderPlantProfile(){
   const content = $("#plantProfileContent");
   const editBtn = $("#profileEdit");
   const logBtn = $("#profileLogCare");
+  const favoriteBtn = $("#profileFavorite");
   if(!profile || !content) return;
 
   const plant = store.cultivars.find(c=>c.id===selectedCultivarId);
@@ -744,16 +782,31 @@ function renderPlantProfile(){
       selectedCultivarId = null;
       renderCultivars();
     }
+    profile.classList.remove("is-favorite");
     profile.classList.add("hidden");
     content.innerHTML = "<p class=\"muted\">Select a plant to view its profile.</p>";
     if(editBtn) editBtn.disabled = true;
     if(logBtn) logBtn.disabled = true;
+    if(favoriteBtn){
+      favoriteBtn.disabled = true;
+      favoriteBtn.textContent = "☆ Favorite";
+      favoriteBtn.setAttribute("aria-pressed", "false");
+      favoriteBtn.setAttribute("aria-label", "Favorite plant");
+    }
     return;
   }
 
   profile.classList.remove("hidden");
+  profile.classList.toggle("is-favorite", Boolean(plant.favorite));
   if(editBtn) editBtn.disabled = false;
   if(logBtn) logBtn.disabled = false;
+  if(favoriteBtn){
+    favoriteBtn.disabled = false;
+    favoriteBtn.classList.add("btn-favorite");
+    favoriteBtn.textContent = plant.favorite ? "★ Favorited" : "☆ Favorite";
+    favoriteBtn.setAttribute("aria-pressed", plant.favorite ? "true" : "false");
+    favoriteBtn.setAttribute("aria-label", plant.favorite ? `Unfavorite ${plantLabel(plant)}` : `Favorite ${plantLabel(plant)}`);
+  }
 
   const badges = [];
   if(plant.blossom) badges.push(`<span class="profile-badge">${escapeHtml(plant.blossom)}</span>`);
@@ -811,12 +864,13 @@ function renderPlantProfile(){
   const photo = `<img src="${photoSrc}" alt="${escapeHtml(plantLabel(plant))}" class="${photoClasses}" />`;
   const title = plant.nickname || plant.cultivarName || "Unnamed plant";
   const subtitle = plant.cultivarName && plant.cultivarName !== title ? plant.cultivarName : "";
+  const favoriteHeading = plant.favorite ? '<span class="sr-only">Favorited plant. </span><span class="card-plant-favorite-icon" aria-hidden="true">★</span>' : "";
 
   content.innerHTML = `
     <div class="profile-header">
       ${photo}
       <div class="profile-summary">
-        <h3>${escapeHtml(title)}</h3>
+        <h3>${favoriteHeading}${escapeHtml(title)}</h3>
         ${subtitle ? `<div class="profile-subtitle">${escapeHtml(subtitle)}</div>` : ""}
         ${subtitle ? `<div class="profile-subtitle muted">${escapeHtml(subtitle)}</div>` : ""}
         ${plant.notes ? `<p>${escapeHtml(plant.notes)}</p>` : `<p class="muted">No notes added.</p>`}
@@ -853,6 +907,11 @@ if(profileLogBtn) profileLogBtn.addEventListener("click", ()=>{
     $(".nav-btn[data-tab='tab-dashboard']").click();
     $("#qcNotes").focus();
   }
+});
+const profileFavoriteBtn = $("#profileFavorite");
+if(profileFavoriteBtn) profileFavoriteBtn.addEventListener("click", ()=>{
+  if(!selectedCultivarId) return;
+  toggleFavorite(selectedCultivarId);
 });
 
 /* Hybridization Projects */
