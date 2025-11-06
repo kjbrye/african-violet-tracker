@@ -38,8 +38,12 @@
   </header>
 <div id="authBar" class="card" style="margin:1rem;">
   <span id="authStatus">Not signed in</span>
-  <input id="authEmail" type="email" placeholder="you@example.com">
-  <button id="btnMagic">Send sign-in link</button>
+  <div id="authControls">
+    <input id="authEmail" type="email" placeholder="you@example.com">
+    <input id="authPassword" type="password" placeholder="Password">
+    <button id="btnSignIn" type="button">Sign in</button>
+    <button id="btnSignUp" type="button" class="secondary">Create account</button>
+  </div>
   <button id="btnSignOut" style="display:none;">Sign out</button>
 </div>
 
