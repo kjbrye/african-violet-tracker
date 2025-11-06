@@ -23,171 +23,6 @@ const CALENDAR_ICONS = {
   project: "🧬"
 };
 
-const UNIT_PREF_KEY = "unit_system_preference_v1";
-let unitSystem = localStorage.getItem(UNIT_PREF_KEY) === "metric" ? "metric" : "imperial";
-
-function isMetricUnits(){
-  return unitSystem === "metric";
-}
-
-function roundTo(value, decimals){
-  const factor = Math.pow(10, decimals);
-  return Math.round(value * factor) / factor;
-}
-
-function formatNumberFixed(value, decimals){
-  if(!Number.isFinite(value)) return "";
-  const rounded = roundTo(value, decimals);
-  if(Number.isInteger(rounded)) return String(rounded);
-  return rounded.toFixed(decimals).replace(/\.0+$/, "").replace(/(\.\d+?)0+$/, "$1");
-}
-
-function parseStoredLength(value){
-  if(value === null || value === undefined) return null;
-  if(typeof value === "number" && Number.isFinite(value)) return value;
-  const str = String(value).trim();
-  if(!str) return null;
-  const sanitized = str.replace(/,/g, ".");
-  const match = sanitized.match(/-?\d+(?:\.\d+)?/);
-  if(!match) return null;
-  const numeric = Number.parseFloat(match[0]);
-  if(Number.isNaN(numeric)) return null;
-  if(/mm/i.test(str)) return numeric / 25.4;
-  if(/cm/i.test(str)) return numeric / 2.54;
-  return numeric;
-}
-
-function parseLengthFromInput(value, unitHint){
-  const str = String(value ?? "").trim();
-  if(!str) return null;
-  const cleaned = str.replace(/,/g, ".");
-  const numeric = Number.parseFloat(cleaned);
-  if(!Number.isNaN(numeric)){
-    const system = unitHint === "metric" || unitHint === "imperial" ? unitHint : (isMetricUnits() ? "metric" : "imperial");
-    return system === "metric" ? numeric / 2.54 : numeric;
-  }
-  return parseStoredLength(str);
-}
-
-function formatLengthInput(inches){
-  if(inches === null || inches === undefined || !Number.isFinite(inches)) return "";
-  const value = isMetricUnits() ? inches * 2.54 : inches;
-  const decimals = isMetricUnits() ? 1 : 2;
-  return formatNumberFixed(value, decimals);
-}
-
-function formatLengthInputValue(value){
-  const inches = parseStoredLength(value);
-  if(inches === null) return typeof value === "string" ? value : "";
-  return formatLengthInput(inches);
-}
-
-function formatLengthDisplay(value){
-  const inches = parseStoredLength(value);
-  if(inches === null){
-    return typeof value === "string" ? value.trim() : "";
-  }
-  const formatted = formatLengthInput(inches);
-  const unitLabel = isMetricUnits() ? "cm" : "in";
-  return formatted ? `${formatted} ${unitLabel}` : "";
-}
-
-function normalizeLengthField(value){
-  const inches = parseStoredLength(value);
-  if(inches === null){
-    if(typeof value === "string"){
-      const trimmed = value.trim();
-      return trimmed || "";
-    }
-    return "";
-  }
-  return roundTo(inches, 3);
-}
-
-function formatTemperature(valueF){
-  if(!Number.isFinite(valueF)) return "";
-  if(isMetricUnits()){
-    return `${Math.round((valueF - 32) * 5 / 9)} °C`;
-  }
-  return `${Math.round(valueF)} °F`;
-}
-
-function formatTemperatureRange(minF, maxF){
-  if(!Number.isFinite(minF) || !Number.isFinite(maxF)) return "";
-  if(isMetricUnits()){
-    const minC = Math.round((minF - 32) * 5 / 9);
-    const maxC = Math.round((maxF - 32) * 5 / 9);
-    return `${minC}–${maxC} °C`;
-  }
-  return `${Math.round(minF)}–${Math.round(maxF)} °F`;
-}
-
-function syncUnitSwitchButtons(){
-  const buttons = $$("#unitSwitch .unit-switch-button");
-  buttons.forEach(btn=>{
-    const isActive = btn.dataset.unit === unitSystem;
-    btn.classList.toggle("is-active", isActive);
-    btn.setAttribute("aria-pressed", isActive ? "true" : "false");
-  });
-}
-
-function updateCultivarFormUnits(previousUnit){
-  const label = $("#potSizeUnitLabel");
-  if(label) label.textContent = isMetricUnits() ? "cm" : "in";
-  const input = $("#cvPot");
-  if(!input) return;
-  if(isMetricUnits()){
-    input.step = "0.5";
-    input.min = formatNumberFixed(1 * 2.54, 1) || "2.5";
-    input.max = formatNumberFixed(12 * 2.54, 1) || "30.5";
-  }else{
-    input.step = "0.25";
-    input.min = "1";
-    input.max = "12";
-  }
-  if(input.value){
-    const sourceUnit = previousUnit === "metric" || previousUnit === "imperial" ? previousUnit : (isMetricUnits() ? "metric" : "imperial");
-    const inches = parseLengthFromInput(input.value, sourceUnit);
-    if(inches !== null){
-      input.value = formatLengthInput(inches);
-    }
-  }
-}
-
-function updateTemperatureGuide(){
-  const comfort = $("#careGuideComfortRange");
-  const minimum = $("#careGuideMinTemp");
-  if(comfort){
-    const text = formatTemperatureRange(65, 75);
-    if(text) comfort.textContent = text;
-  }
-  if(minimum){
-    const text = formatTemperature(60);
-    if(text) minimum.textContent = text;
-  }
-}
-
-function updateUnitDependentUi(previousUnit){
-  updateCultivarFormUnits(previousUnit);
-  updateTemperatureGuide();
-  renderPlantProfile();
-}
-
-function setUnitSystem(newSystem){
-  const normalized = newSystem === "metric" ? "metric" : "imperial";
-  const previous = unitSystem;
-  if(previous === normalized){
-    syncUnitSwitchButtons();
-    updateUnitDependentUi(previous);
-    return;
-  }
-  unitSystem = normalized;
-  localStorage.setItem(UNIT_PREF_KEY, unitSystem);
-  syncUnitSwitchButtons();
-  updateUnitDependentUi(previous);
-  renderCultivars();
-}
-
 let store = loadStore();
 let selectedCultivarId = null;
 let selectedProjectId = null;
@@ -216,8 +51,6 @@ function normalizePlant(plant){
   const nickname = String(plant?.nickname ?? "").trim();
   const fertilizerNpk = String(plant?.fertilizerNpk ?? "").trim();
   const fertilizerMethod = String(plant?.fertilizerMethod ?? "").trim();
-  const normalized = { ...plant, cultivarName, nickname, fertilizerNpk, fertilizerMethod };
-  normalized.pot = normalizeLengthField(plant?.pot);
   const favoriteRaw = plant?.favorite;
   const favorite = favoriteRaw === true || favoriteRaw === "true" || favoriteRaw === 1 || favoriteRaw === "1";
   const normalized = { ...plant, cultivarName, nickname, fertilizerNpk, fertilizerMethod, favorite };
@@ -358,7 +191,6 @@ function normalizeTask(task){
 function saveStore(){
   localStorage.setItem(STORE_KEY, JSON.stringify(store));
   renderAll();
-  updateUnitDependentUi();
 }
 
 /* Navigation */
@@ -515,7 +347,7 @@ function openCultivarDialog(cv=null){
   $("#cvColor").value = cv?.color || "";
   $("#cvLeaf").value = cv?.leaf || "";
   $("#cvVariegation").value = cv?.variegation || "";
-  $("#cvPot").value = formatLengthInputValue(cv?.pot);
+  $("#cvPot").value = cv?.pot || "";
   $("#cvLocation").value = cv?.location || "";
   $("#cvAcquired").value = cv?.acquired || "";
   $("#cvSource").value = cv?.source || "";
@@ -545,12 +377,6 @@ function saveCultivarFromForm(){
   const fileInput = $("#cvPhoto");
   const file = fileInput.files?.[0];
   function finishSave(){
-    const rawPot = get("cvPot").trim();
-    let potValue = "";
-    if(rawPot){
-      const inches = parseLengthFromInput(rawPot, unitSystem);
-      potValue = inches !== null ? roundTo(inches, 3) : rawPot;
-    }
     const data = {
       id,
       cultivarName: get("cvCultivarName").trim(),
@@ -561,7 +387,7 @@ function saveCultivarFromForm(){
       color: get("cvColor").trim(),
       leaf: get("cvLeaf"),
       variegation: get("cvVariegation").trim(),
-      pot: potValue,
+      pot: get("cvPot"),
       location: get("cvLocation").trim(),
       acquired: get("cvAcquired"),
       source: get("cvSource").trim(),
@@ -814,14 +640,13 @@ function renderPlantProfile(){
   if(plant.leaf) badges.push(`<span class="profile-badge">${escapeHtml(plant.leaf)}</span>`);
   if(plant.location) badges.push(`<span class="profile-badge">📍 ${escapeHtml(plant.location)}</span>`);
 
-  const potDisplay = formatLengthDisplay(plant.pot);
   const info = [
     {label:"Cultivar", value: plant.cultivarName ? escapeHtml(plant.cultivarName) : "—"},
     {label:"Nickname", value: plant.nickname ? escapeHtml(plant.nickname) : "—"},
     {label:"Hybridizer", value: plant.hybridizer ? escapeHtml(plant.hybridizer) : "—"},
     {label:"Year", value: plant.year ? escapeHtml(plant.year) : "—"},
     {label:"Variegation", value: plant.variegation ? escapeHtml(plant.variegation) : "—"},
-    {label:"Pot Size", value: potDisplay ? escapeHtml(potDisplay) : "—"},
+    {label:"Pot Size", value: plant.pot ? escapeHtml(`${plant.pot}\"`) : "—"},
     {label:"Acquired", value: plant.acquired ? escapeHtml(formatDate(plant.acquired)) : "—"},
     {label:"Source", value: plant.source ? escapeHtml(plant.source) : "—"},
     {label:"Watering Interval", value: plant.waterInterval ? escapeHtml(`${plant.waterInterval} days`) : "—"},
@@ -2257,14 +2082,6 @@ $("#btnLoadSample").addEventListener("click", ()=>{
   }).catch(()=> alert("Could not load sample data."));
 });
 
-const unitSwitchButtons = $$("#unitSwitch .unit-switch-button");
-if(unitSwitchButtons.length){
-  unitSwitchButtons.forEach(btn=>{
-    btn.addEventListener("click", ()=> setUnitSystem(btn.dataset.unit));
-  });
-  syncUnitSwitchButtons();
-}
-
 setupTaskForm("dashboardTaskForm", {
   title: $("#dashTaskTitle"),
   date: $("#dashTaskDate"),
@@ -2291,7 +2108,6 @@ function renderAll(){
   renderCalendar();
 }
 renderAll();
-updateUnitDependentUi();
 function plantPhoto(plant){
   if(plant?.photo){
     return { src: plant.photo, placeholder: false };
