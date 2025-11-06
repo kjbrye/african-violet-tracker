@@ -23,6 +23,16 @@ const CALENDAR_ICONS = {
   project: "🧬"
 };
 
+function blankStore(){
+  return {
+    cultivars: [],
+    care: [],
+    projects: [],
+    tasks: [],
+    updatedAt: new Date().toISOString()
+  };
+}
+
 let store = loadStore();
 let selectedCultivarId = null;
 let selectedProjectId = null;
@@ -30,15 +40,16 @@ let cultivarViewMode = localStorage.getItem(VIEW_MODE_KEY) === "list" ? "list" :
 let calendarViewDate = startOfMonth(new Date());
 let plantEditorState = { active: false, draft: null, isNew: false };
 let plantProfileTab = "overview";
+let cloudPushTimer = null;
 function loadStore(){
   try{
     const raw = localStorage.getItem(STORE_KEY);
-    if(!raw) return normalizeStore({ cultivars: [], care: [], projects: [], tasks: [] });
+    if(!raw) return blankStore();
     const parsed = JSON.parse(raw);
     return normalizeStore(parsed);
   }catch(e){
     console.error("Failed to parse store", e);
-    return normalizeStore({ cultivars: [], care: [], projects: [], tasks: [] });
+    return blankStore();
   }
 }
 function normalizeStore(data){
@@ -46,7 +57,9 @@ function normalizeStore(data){
   const care = Array.isArray(data?.care) ? data.care.map(entry=>({ ...entry })) : [];
   const projects = Array.isArray(data?.projects) ? data.projects.map(normalizeProject) : [];
   const tasks = Array.isArray(data?.tasks) ? data.tasks.map(normalizeTask).filter(Boolean) : [];
-  return { cultivars, care, projects, tasks };
+  const updatedRaw = data?.updatedAt || data?.updated_at || null;
+  const updatedAt = updatedRaw ? String(updatedRaw) : new Date().toISOString();
+  return { cultivars, care, projects, tasks, updatedAt };
 }
 function normalizePlant(plant){
   const cultivarName = String(plant?.cultivarName ?? plant?.name ?? "").trim();
@@ -190,9 +203,24 @@ function normalizeTask(task){
     createdAt
   };
 }
-function saveStore(){
+function touchStore(){
+  store.updatedAt = new Date().toISOString();
+}
+
+function persistLocalStore(){
   localStorage.setItem(STORE_KEY, JSON.stringify(store));
+}
+
+function saveStore(options={}){
+  const { skipTouch = false, skipCloud = false } = options;
+  if(!skipTouch){
+    touchStore();
+  }
+  persistLocalStore();
   renderAll();
+  if(!skipCloud){
+    queueCloudPush();
+  }
 }
 
 /* Navigation */
@@ -2603,18 +2631,45 @@ function plantPhoto(plant){
   }
   return { src: PLACEHOLDER_PHOTO, placeholder: true };
 }
-// AUTH
+// AUTH & CLOUD SYNC
+const CLOUD_TABLE = "user_store";
+
+function isMissingTableError(error){
+  if(!error) return false;
+  if(error.code === "42P01") return true;
+  const msg = String(error.message || "");
+  return /does not exist/i.test(msg);
+}
+
 async function ensureSession(){
+  if(typeof supabase === "undefined") return;
   const { data: { session } } = await supabase.auth.getSession();
-  supabase.auth.onAuthStateChange((_evt, s) => { renderAuthUI(s); if(s) cloudPull(); });
+  supabase.auth.onAuthStateChange((_evt, s) => {
+    renderAuthUI(s);
+    if(s){
+      cloudPull();
+    }
+  });
   renderAuthUI(session);
+  if(session){
+    cloudPull();
+  }
 }
 function renderAuthUI(session){
   const s = $("#authStatus"), email = $("#authEmail");
   const magic = $("#btnMagic"), out = $("#btnSignOut");
-  if(session?.user){ s.textContent = `Signed in as ${session.user.email}`;
-    email.style.display="none"; magic.style.display="none"; out.style.display=""; }
-  else { s.textContent="Not signed in"; email.style.display=""; magic.style.display=""; out.style.display="none"; }
+  if(session?.user){
+    s.textContent = `Signed in as ${session.user.email}`;
+    if(email) email.style.display="none";
+    if(magic) magic.style.display="none";
+    if(out) out.style.display="";
+  }
+  else {
+    s.textContent="Not signed in";
+    if(email) email.style.display="";
+    if(magic) magic.style.display="";
+    if(out) out.style.display="none";
+  }
 }
 $("#btnMagic").addEventListener("click", async ()=>{
   const email = $("#authEmail").value.trim();
@@ -2624,49 +2679,164 @@ $("#btnMagic").addEventListener("click", async ()=>{
 });
 $("#btnSignOut").addEventListener("click", ()=> supabase.auth.signOut());
 
-// CLOUD SYNC
 async function cloudPull(){
-  const { data: { user } } = await supabase.auth.getUser(); if(!user) return;
-  const { data: cvs } = await supabase.from("cultivars").select("*").order("name");
-  const { data: care } = await supabase.from("care").select("*").order("date");
-  // merge: cloud wins; keep any strictly local items
-  const map = Object.fromEntries((cvs||[]).map(c=>[c.id,c]));
-  store.cultivars.forEach(local=>{ if(!map[local.id]) map[local.id] = local; });
-  store.cultivars = Object.values(map);
-  store.care = care || [];
-  localSave(); // re-render
+  if(typeof supabase === "undefined") return;
+  const { data: { user } } = await supabase.auth.getUser();
+  if(!user) return;
+  const { data, error } = await supabase
+    .from(CLOUD_TABLE)
+    .select("data, updated_at")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if(!error && (!data || !data.data)){
+    await cloudPullLegacy(user);
+    queueCloudPush();
+    return;
+  }
+  if(!error && data?.data){
+    const remote = normalizeStore(data.data);
+    if(remote.updatedAt && store.updatedAt && new Date(store.updatedAt) > new Date(remote.updatedAt)){
+      queueCloudPush();
+      return;
+    }
+    store = remote;
+    selectedCultivarId = null;
+    selectedProjectId = null;
+    saveStore({ skipCloud: true, skipTouch: true });
+    return;
+  }
+  if(error && !isMissingTableError(error)){
+    console.error("Failed to pull cloud data", error);
+  }
+  await cloudPullLegacy(user);
 }
 
-async function cloudPushAll(){
-  const { data: { user } } = await supabase.auth.getUser(); if(!user) return;
-  // upsert cultivars
-  const cvPayload = store.cultivars.map(c=>({
-    id:c.id, user_id:user.id, name:c.name,
-    hybridizer:c.hybridizer||null, year:c.year?Number(c.year):null,
-    blossom:c.blossom||null, color:c.color||null, leaf:c.leaf||null, variegation:c.variegation||null,
-    pot:c.pot?Number(c.pot):null, location:c.location||null, acquired:c.acquired||null, source:c.source||null,
-    water_interval:c.waterInterval??7, fert_interval:c.fertInterval??30,
-    notes:c.notes||null, photo:c.photo||null,
-    last_water:c._lastWater||null, last_fert:c._lastFert||null
-  }));
-  await supabase.from("cultivars").upsert(cvPayload, { onConflict: "id" });
-
-  // replace care log (simple, safe)
-  await supabase.from("care").delete().eq("user_id", user.id);
-  if(store.care.length){
-    await supabase.from("care").insert(store.care.map(r=>({
-      id:r.id, user_id:user.id, cultivar_id:r.cultivarId,
-      date:r.date, action:r.action, notes:r.notes||null
-    })));
+async function cloudPullLegacy(user){
+  try{
+    const { data: cvs, error: cvError } = await supabase
+      .from("cultivars")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("name");
+    if(cvError){
+      if(isMissingTableError(cvError)) return;
+      throw cvError;
+    }
+    const { data: care, error: careError } = await supabase
+      .from("care")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("date");
+    if(careError){
+      if(isMissingTableError(careError)) return;
+      throw careError;
+    }
+    const map = new Map();
+    (cvs||[]).forEach(c => {
+      const normalized = normalizePlant(c);
+      map.set(normalized.id, normalized);
+    });
+    (store.cultivars||[]).forEach(local => {
+      if(!map.has(local.id)) map.set(local.id, local);
+    });
+    store.cultivars = Array.from(map.values());
+    store.care = Array.isArray(care) ? care.map(entry => ({ ...entry })) : [];
+    saveStore({ skipCloud: true });
+  }catch(err){
+    console.error("Legacy cloud pull failed", err);
   }
 }
 
-// keep your original local save, but mirror to cloud when signed in
-const localSave = store ? saveStore : ()=>{};
-saveStore = function(){
-  localStorage.setItem(STORE_KEY, JSON.stringify(store));
-  renderAll();
-  cloudPushAll().catch(console.error);
-};
+async function cloudPushAll(){
+  if(typeof supabase === "undefined") return;
+  const { data: { user } } = await supabase.auth.getUser();
+  if(!user) return;
+  const payload = {
+    user_id: user.id,
+    data: store,
+    updated_at: new Date().toISOString()
+  };
+  const { error } = await supabase
+    .from(CLOUD_TABLE)
+    .upsert(payload, { onConflict: "user_id" });
+  if(!error) return;
+  if(isMissingTableError(error)){
+    await cloudPushLegacy(user);
+    return;
+  }
+  throw error;
+}
+
+async function cloudPushLegacy(user){
+  try{
+    const localIds = new Set((store.cultivars||[]).map(c => c.id));
+    const { data: remoteCvIds } = await supabase
+      .from("cultivars")
+      .select("id")
+      .eq("user_id", user.id);
+    const toDelete = (remoteCvIds||[])
+      .map(row => row.id)
+      .filter(id => !localIds.has(id));
+    if(toDelete.length){
+      await supabase.from("cultivars").delete().eq("user_id", user.id).in("id", toDelete);
+    }
+    const cvPayload = (store.cultivars||[]).map(c=>({
+      id:c.id,
+      user_id:user.id,
+      name:c.cultivarName || c.name || null,
+      hybridizer:c.hybridizer||null,
+      year:c.year?Number(c.year):null,
+      blossom:c.blossom||null,
+      color:c.color||null,
+      leaf:c.leaf||null,
+      variegation:c.variegation||null,
+      pot:c.pot?Number(c.pot):null,
+      location:c.location||null,
+      acquired:c.acquired||null,
+      source:c.source||null,
+      water_interval:c.waterInterval??7,
+      fert_interval:c.fertInterval??30,
+      notes:c.notes||null,
+      photo:c.photo||null,
+      last_water:c._lastWater||null,
+      last_fert:c._lastFert||null
+    }));
+    if(cvPayload.length){
+      await supabase.from("cultivars").upsert(cvPayload, { onConflict: "id" });
+    }
+
+    await supabase.from("care").delete().eq("user_id", user.id);
+    if(store.care.length){
+      const carePayload = store.care.map(r=>({
+        id:r.id,
+        user_id:user.id,
+        cultivar_id:r.cultivarId,
+        date:r.date,
+        action:r.action,
+        notes:r.notes||null
+      }));
+      await supabase.from("care").insert(carePayload);
+    }
+  }catch(err){
+    if(isMissingTableError(err)) return;
+    console.error("Legacy cloud push failed", err);
+    throw err;
+  }
+}
+
+function queueCloudPush(){
+  if(typeof supabase === "undefined" || !supabase?.auth) return;
+  if(cloudPushTimer){
+    clearTimeout(cloudPushTimer);
+  }
+  cloudPushTimer = setTimeout(async ()=>{
+    cloudPushTimer = null;
+    try{
+      await cloudPushAll();
+    }catch(err){
+      console.error("Cloud sync failed", err);
+    }
+  }, 750);
+}
 
 ensureSession();
