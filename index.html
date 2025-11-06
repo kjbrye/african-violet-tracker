@@ -134,47 +134,6 @@
         </div>
         <div id="plantProfileContent"></div>
       </div>
-
-      <dialog id="cultivarDialog">
-        <form method="dialog" class="form-grid" id="cultivarForm">
-          <h3 id="cultivarDialogTitle">Add Plant</h3>
-          <input type="hidden" id="cvId" />
-          <label>Cultivar/Variety Name* <input id="cvCultivarName" required /></label>
-          <label>Nickname <input id="cvNickname" placeholder="Optional" /></label>
-          <label>Hybridizer <input id="cvHybridizer" /></label>
-          <label>Year <input id="cvYear" type="number" min="1800" max="2100" /></label>
-          <label>Blossom Type
-            <select id="cvBlossom">
-              <option value="">—</option>
-              <option>Single</option><option>Semi-double</option><option>Double</option>
-              <option>Star</option><option>Frilled</option><option>Fantasy</option><option>Chimera</option>
-            </select>
-          </label>
-          <label>Blossom Color <input id="cvColor" placeholder="e.g., lavender fantasy, variegated" /></label>
-          <label>Leaf Type
-            <select id="cvLeaf">
-              <option value="">—</option>
-              <option>Standard</option><option>Miniature</option><option>Semi-mini</option><option>Trailing</option>
-              <option>Variegated</option><option>Boy/Girl</option><option>Serrated</option>
-            </select>
-          </label>
-          <label>Variegation <input id="cvVariegation" placeholder="e.g., Tommie Lou, white edge" /></label>
-          <label>Pot Size (in) <input id="cvPot" type="number" step="0.25" min="1" max="12" /></label>
-          <label>Location <input id="cvLocation" placeholder="e.g., Shelf A, NE window" /></label>
-          <label>Acquired <input id="cvAcquired" type="date" /></label>
-          <label>Source <input id="cvSource" placeholder="Vendor, leaf, trade…" /></label>
-          <label>Watering Interval (days) <input id="cvWaterInterval" type="number" min="1" value="7" /></label>
-          <label>Fertilizer Interval (days) <input id="cvFertInterval" type="number" min="1" value="30" /></label>
-          <label>Fertilizer NPK <input id="cvFertilizerNpk" placeholder="e.g., 14-12-14" /></label>
-          <label>Fertilizer Method <input id="cvFertilizerMethod" placeholder="In water, soil drench, slow-release stick…" /></label>
-          <label>Notes <textarea id="cvNotes" rows="3"></textarea></label>
-          <label>Photo <input id="cvPhoto" type="file" accept="image/*" /></label>
-          <menu>
-            <button type="button" value="cancel" class="secondary" id="cancelCultivar">Cancel</button>
-            <button id="saveCultivar" value="default">Save</button>
-          </menu>
-        </form>
-      </dialog>
     </section>
 
     <!-- HYBRIDIZATION PROJECTS -->

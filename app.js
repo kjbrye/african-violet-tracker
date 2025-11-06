@@ -28,6 +28,8 @@ let selectedCultivarId = null;
 let selectedProjectId = null;
 let cultivarViewMode = localStorage.getItem(VIEW_MODE_KEY) === "list" ? "list" : "tiles";
 let calendarViewDate = startOfMonth(new Date());
+let plantEditorState = { active: false, draft: null, isNew: false };
+let plantProfileTab = "overview";
 function loadStore(){
   try{
     const raw = localStorage.getItem(STORE_KEY);
@@ -292,23 +294,10 @@ function generateRecurringDates(baseDateStr, intervalDays, rangeStartStr, rangeE
 }
 
 /* Plants */
-const cultivarDialog = $("#cultivarDialog");
-const cultivarForm = $("#cultivarForm");
-$("#btnAddCultivar").addEventListener("click", () => openCultivarDialog());
-cultivarForm.addEventListener("submit", (e)=>{
-  e.preventDefault();
+$("#btnAddCultivar").addEventListener("click", () => {
+  plantProfileTab = "overview";
+  startPlantEdit();
 });
-$("#saveCultivar").addEventListener("click", (e)=>{
-  e.preventDefault();
-  saveCultivarFromForm();
-});
-$("#cancelCultivar").addEventListener("click", () => {
-  cultivarForm.reset();
-  $("#cvId").value = "";
-  cultivarDialog.close();
-});
-
-$("#cvPhoto").addEventListener("change", handlePhoto);
 
 const viewSwitchButtons = $$(".view-switch-btn[data-view]");
 function syncViewSwitchButtons(mode){
@@ -336,89 +325,171 @@ viewSwitchButtons.forEach(btn => {
 });
 syncViewSwitchButtons(cultivarViewMode);
 
-function openCultivarDialog(cv=null){
-  $("#cultivarDialogTitle").textContent = cv ? "Edit Plant" : "Add Plant";
-  $("#cvId").value = cv?.id || "";
-  $("#cvCultivarName").value = cv?.cultivarName || "";
-  $("#cvNickname").value = cv?.nickname || "";
-  $("#cvHybridizer").value = cv?.hybridizer || "";
-  $("#cvYear").value = cv?.year || "";
-  $("#cvBlossom").value = cv?.blossom || "";
-  $("#cvColor").value = cv?.color || "";
-  $("#cvLeaf").value = cv?.leaf || "";
-  $("#cvVariegation").value = cv?.variegation || "";
-  $("#cvPot").value = cv?.pot || "";
-  $("#cvLocation").value = cv?.location || "";
-  $("#cvAcquired").value = cv?.acquired || "";
-  $("#cvSource").value = cv?.source || "";
-  $("#cvWaterInterval").value = cv?.waterInterval ?? 7;
-  $("#cvFertInterval").value = cv?.fertInterval ?? 30;
-  $("#cvFertilizerNpk").value = cv?.fertilizerNpk || "";
-  $("#cvFertilizerMethod").value = cv?.fertilizerMethod || "";
-  $("#cvNotes").value = cv?.notes || "";
-  $("#cvPhoto").value = "";
-  cultivarDialog.showModal();
+function defaultPlant(){
+  return {
+    id: "",
+    cultivarName: "",
+    nickname: "",
+    hybridizer: "",
+    year: "",
+    blossom: "",
+    color: "",
+    leaf: "",
+    variegation: "",
+    pot: "",
+    location: "",
+    acquired: "",
+    source: "",
+    waterInterval: 7,
+    fertInterval: 30,
+    fertilizerNpk: "",
+    fertilizerMethod: "",
+    notes: "",
+    photo: "",
+    favorite: false
+  };
 }
 
-async function handlePhoto(e){
-  const file = e.target.files?.[0];
-  if(!file) return;
-  if(file.size > 2_000_000){
-    alert("Image is large; it will be stored locally and may impact storage. Try under 2 MB.");
+function ensurePlantProfileVisible(){
+  const profile = $("#plantProfile");
+  if(profile){
+    profile.classList.remove("hidden");
+    if(!profile.hasAttribute("tabindex")) profile.setAttribute("tabindex", "-1");
+    if(typeof profile.focus === "function"){ profile.focus(); }
+    if(typeof profile.scrollIntoView === "function"){ profile.scrollIntoView({ behavior: "smooth", block: "start" }); }
   }
 }
 
-function saveCultivarFromForm(){
-  const id = $("#cvId").value || uid();
-  const get = (id)=>$("#"+id).value;
-  const existing = store.cultivars.find(c=>c.id===id);
-  let photoData = existing?.photo || "";
+function startPlantEdit(id=null){
+  const navBtn = $(".nav-btn[data-tab='tab-cultivars']");
+  if(navBtn && !navBtn.classList.contains("active")) navBtn.click();
+  plantProfileTab = "overview";
+  const existing = id ? store.cultivars.find(c=>c.id===id) : null;
+  const draft = existing ? { ...existing } : defaultPlant();
+  plantEditorState = { active: true, draft, isNew: !existing };
+  if(existing){
+    selectedCultivarId = existing.id;
+  }else{
+    selectedCultivarId = null;
+  }
+  ensurePlantProfileVisible();
+  renderPlantProfile();
+}
 
-  const fileInput = $("#cvPhoto");
-  const file = fileInput.files?.[0];
-  function finishSave(){
-    const data = {
-      id,
-      cultivarName: get("cvCultivarName").trim(),
-      nickname: get("cvNickname").trim(),
-      hybridizer: get("cvHybridizer").trim(),
-      year: get("cvYear"),
-      blossom: get("cvBlossom"),
-      color: get("cvColor").trim(),
-      leaf: get("cvLeaf"),
-      variegation: get("cvVariegation").trim(),
-      pot: get("cvPot"),
-      location: get("cvLocation").trim(),
-      acquired: get("cvAcquired"),
-      source: get("cvSource").trim(),
-      waterInterval: Number(get("cvWaterInterval")||7),
-      fertInterval: Number(get("cvFertInterval")||30),
-      fertilizerNpk: get("cvFertilizerNpk").trim(),
-      fertilizerMethod: get("cvFertilizerMethod").trim(),
-      notes: get("cvNotes").trim(),
-      photo: photoData,
-      favorite: existing?.favorite ?? false
-    };
-    if(!data.cultivarName){ alert("Cultivar/Variety Name is required."); return; }
-    if(existing){
-      Object.assign(existing, data);
-      delete existing.name;
-    }else{
-      store.cultivars.push(data);
+function cancelPlantEdit(){
+  const wasNew = plantEditorState.isNew && !selectedCultivarId;
+  plantEditorState = { active: false, draft: null, isNew: false };
+  plantProfileTab = "overview";
+  if(wasNew){
+    renderPlantProfile();
+    return;
+  }
+  renderPlantProfile();
+}
+
+function setPlantProfileTab(tab){
+  const allowed = ["overview","timeline","photos","projects","notes"];
+  const safe = allowed.includes(tab) ? tab : "overview";
+  if(plantProfileTab === safe) return;
+  plantProfileTab = safe;
+  renderPlantProfile();
+}
+
+function savePlantEdit(){
+  const form = $("#plantOverviewForm");
+  if(!form || !plantEditorState.draft) return;
+  const draft = { ...plantEditorState.draft };
+  const value = (id)=>{
+    const el = form.querySelector(`#${id}`);
+    return el && "value" in el ? el.value : "";
+  };
+  const checked = (id)=>{
+    const el = form.querySelector(`#${id}`);
+    return el && "checked" in el ? el.checked : false;
+  };
+  const trimValue = (id)=> value(id).trim();
+
+  draft.cultivarName = trimValue("editCultivarName");
+  draft.nickname = trimValue("editNickname");
+  draft.hybridizer = trimValue("editHybridizer");
+  draft.year = trimValue("editYear");
+  draft.blossom = value("editBlossom");
+  draft.color = trimValue("editColor");
+  draft.leaf = value("editLeaf");
+  draft.variegation = trimValue("editVariegation");
+  draft.pot = trimValue("editPot");
+  draft.location = trimValue("editLocation");
+  draft.acquired = trimValue("editAcquired");
+  draft.source = trimValue("editSource");
+  const waterRaw = value("editWaterInterval");
+  draft.waterInterval = waterRaw ? Number(waterRaw) : 7;
+  const fertRaw = value("editFertInterval");
+  draft.fertInterval = fertRaw ? Number(fertRaw) : 30;
+  draft.fertilizerNpk = trimValue("editFertilizerNpk");
+  draft.fertilizerMethod = trimValue("editFertilizerMethod");
+  draft.notes = trimValue("editNotes");
+
+  if(Number.isNaN(draft.waterInterval) || draft.waterInterval <= 0){
+    draft.waterInterval = 7;
+  }
+  if(Number.isNaN(draft.fertInterval) || draft.fertInterval <= 0){
+    draft.fertInterval = 30;
+  }
+
+  const removePhoto = checked("editRemovePhoto");
+  const photoUrl = trimValue("editPhotoUrl");
+  let photoData = draft.photo || "";
+  if(removePhoto){
+    photoData = "";
+  }else if(photoUrl){
+    photoData = photoUrl;
+  }
+
+  function finalize(photo){
+    const id = draft.id || uid();
+    const data = { ...draft, id, photo };
+    delete data.name;
+    if(!data.cultivarName){
+      alert("Cultivar/Variety Name is required.");
+      return;
     }
+    if(plantEditorState.isNew){
+      data.favorite = false;
+      store.cultivars.push(data);
+    }else{
+      const existing = store.cultivars.find(c=>c.id===data.id);
+      if(existing){
+        Object.assign(existing, data);
+        delete existing.name;
+      }else{
+        store.cultivars.push(data);
+      }
+    }
+    selectedCultivarId = data.id;
+    plantEditorState = { active: false, draft: null, isNew: false };
     saveStore();
-    cultivarDialog.close();
   }
+
+  const fileInput = form.querySelector("#plantPhotoInput");
+  const file = fileInput?.files?.[0];
   if(file){
+    if(file.size > 2_000_000){
+      alert("Image is large; it will be stored locally and may impact storage. Try under 2 MB.");
+    }
     const reader = new FileReader();
-    reader.onload = ()=>{
-      photoData = reader.result;
-      finishSave();
-    };
+    reader.onload = ()=> finalize(reader.result);
     reader.readAsDataURL(file);
   }else{
-    finishSave();
+    finalize(photoData);
   }
+}
+
+function quickUpdatePlantNotes(value){
+  if(!selectedCultivarId) return;
+  const plant = store.cultivars.find(c=>c.id===selectedCultivarId);
+  if(!plant) return;
+  plant.notes = value.trim();
+  saveStore();
 }
 
 function renderCultivars(){
@@ -529,7 +600,7 @@ function renderCultivars(){
       event.stopPropagation();
       toggleFavorite(c.id);
     });
-    const edit = document.createElement("button"); edit.textContent = "Edit"; edit.addEventListener("click", ()=>openCultivarDialog(c));
+    const edit = document.createElement("button"); edit.textContent = "Edit"; edit.addEventListener("click", ()=>startPlantEdit(c.id));
     const del = document.createElement("button"); del.textContent = "Delete"; del.className = "danger"; del.addEventListener("click", ()=>{
       if(confirm(`Delete ${plantLabel(c)}? This removes its upcoming reminders but keeps care history.`)){
         // Remove cultivar
@@ -571,28 +642,24 @@ function toggleFavorite(id){
 
 function closePlantProfile(){
   selectedCultivarId = null;
+  plantEditorState = { active: false, draft: null, isNew: false };
+  plantProfileTab = "overview";
   renderPlantProfile();
   renderCultivars();
 }
 
 function openPlantProfile(id){
+  plantEditorState = { active: false, draft: null, isNew: false };
+  plantProfileTab = "overview";
   selectedCultivarId = id;
   const navBtn = $(".nav-btn[data-tab='tab-cultivars']");
   if(navBtn && !navBtn.classList.contains("active")) navBtn.click();
   renderPlantProfile();
   renderCultivars();
-  const profile = $("#plantProfile");
-  if(profile){
-    profile.classList.remove("hidden");
-    if(!profile.hasAttribute("tabindex")) profile.setAttribute("tabindex","-1");
-    if(typeof profile.focus === "function"){
-      profile.focus();
-    }
-    if(typeof profile.scrollIntoView === "function"){
-      profile.scrollIntoView({behavior:"smooth", block:"start"});
-    }
-  }
+  ensurePlantProfileVisible();
 }
+
+
 
 function renderPlantProfile(){
   const profile = $("#plantProfile");
@@ -602,16 +669,21 @@ function renderPlantProfile(){
   const favoriteBtn = $("#profileFavorite");
   if(!profile || !content) return;
 
-  const plant = store.cultivars.find(c=>c.id===selectedCultivarId);
+  const editing = plantEditorState.active;
+  const plant = editing ? plantEditorState.draft : store.cultivars.find(c=>c.id===selectedCultivarId);
+
   if(!plant){
     if(selectedCultivarId){
       selectedCultivarId = null;
       renderCultivars();
     }
-    profile.classList.remove("is-favorite");
     profile.classList.add("hidden");
+    profile.classList.remove("is-favorite");
     content.innerHTML = "<p class=\"muted\">Select a plant to view its profile.</p>";
-    if(editBtn) editBtn.disabled = true;
+    if(editBtn){
+      editBtn.disabled = true;
+      editBtn.textContent = "Edit";
+    }
     if(logBtn) logBtn.disabled = true;
     if(favoriteBtn){
       favoriteBtn.disabled = true;
@@ -623,15 +695,31 @@ function renderPlantProfile(){
   }
 
   profile.classList.remove("hidden");
-  profile.classList.toggle("is-favorite", Boolean(plant.favorite));
-  if(editBtn) editBtn.disabled = false;
-  if(logBtn) logBtn.disabled = false;
+
+  const isSavedPlant = Boolean(plant.id);
+  const isFavorite = Boolean(plant.favorite && isSavedPlant && !plantEditorState.isNew);
+  profile.classList.toggle("is-favorite", isFavorite);
+
+  if(editBtn){
+    editBtn.disabled = !isSavedPlant && !plantEditorState.isNew && !editing;
+    editBtn.textContent = editing ? "Cancel Editing" : "Edit";
+  }
+  if(logBtn){
+    logBtn.disabled = editing || !isSavedPlant;
+  }
   if(favoriteBtn){
-    favoriteBtn.disabled = false;
+    const disableFavorite = editing || !isSavedPlant;
+    favoriteBtn.disabled = disableFavorite;
     favoriteBtn.classList.add("btn-favorite");
-    favoriteBtn.textContent = plant.favorite ? "★ Favorited" : "☆ Favorite";
-    favoriteBtn.setAttribute("aria-pressed", plant.favorite ? "true" : "false");
-    favoriteBtn.setAttribute("aria-label", plant.favorite ? `Unfavorite ${plantLabel(plant)}` : `Favorite ${plantLabel(plant)}`);
+    favoriteBtn.textContent = isFavorite ? "★ Favorited" : "☆ Favorite";
+    favoriteBtn.setAttribute("aria-pressed", isFavorite ? "true" : "false");
+    const labelName = plantLabel(plant) || "plant";
+    favoriteBtn.setAttribute("aria-label", isFavorite ? `Unfavorite ${labelName}` : `Favorite ${labelName}`);
+  }
+
+  const disableTabs = editing && plantEditorState.isNew;
+  if(disableTabs && plantProfileTab !== "overview"){
+    plantProfileTab = "overview";
   }
 
   const badges = [];
@@ -641,87 +729,356 @@ function renderPlantProfile(){
   if(plant.location) badges.push(`<span class="profile-badge">📍 ${escapeHtml(plant.location)}</span>`);
 
   const info = [
-    {label:"Cultivar", value: plant.cultivarName ? escapeHtml(plant.cultivarName) : "—"},
-    {label:"Nickname", value: plant.nickname ? escapeHtml(plant.nickname) : "—"},
-    {label:"Hybridizer", value: plant.hybridizer ? escapeHtml(plant.hybridizer) : "—"},
-    {label:"Year", value: plant.year ? escapeHtml(plant.year) : "—"},
-    {label:"Variegation", value: plant.variegation ? escapeHtml(plant.variegation) : "—"},
-    {label:"Pot Size", value: plant.pot ? escapeHtml(`${plant.pot}\"`) : "—"},
-    {label:"Acquired", value: plant.acquired ? escapeHtml(formatDate(plant.acquired)) : "—"},
-    {label:"Source", value: plant.source ? escapeHtml(plant.source) : "—"},
-    {label:"Watering Interval", value: plant.waterInterval ? escapeHtml(`${plant.waterInterval} days`) : "—"},
-    {label:"Fertilizer Interval", value: plant.fertInterval ? escapeHtml(`${plant.fertInterval} days`) : "—"},
-    {label:"Fertilizer NPK", value: plant.fertilizerNpk ? escapeHtml(plant.fertilizerNpk) : "—"},
-    {label:"Fertilizer Method", value: plant.fertilizerMethod ? escapeHtml(plant.fertilizerMethod) : "—"}
+    { label: "Cultivar", value: plant.cultivarName ? escapeHtml(plant.cultivarName) : "—" },
+    { label: "Nickname", value: plant.nickname ? escapeHtml(plant.nickname) : "—" },
+    { label: "Hybridizer", value: plant.hybridizer ? escapeHtml(plant.hybridizer) : "—" },
+    { label: "Year", value: plant.year ? escapeHtml(plant.year) : "—" },
+    { label: "Variegation", value: plant.variegation ? escapeHtml(plant.variegation) : "—" },
+    { label: "Pot Size", value: plant.pot ? escapeHtml(`${plant.pot}"`) : "—" },
+    { label: "Location", value: plant.location ? escapeHtml(plant.location) : "—" },
+    { label: "Acquired", value: plant.acquired ? escapeHtml(formatDate(plant.acquired)) : "—" },
+    { label: "Source", value: plant.source ? escapeHtml(plant.source) : "—" },
+    { label: "Watering Interval", value: plant.waterInterval ? escapeHtml(`${plant.waterInterval} days`) : "—" },
+    { label: "Fertilizer Interval", value: plant.fertInterval ? escapeHtml(`${plant.fertInterval} days`) : "—" },
+    { label: "Fertilizer NPK", value: plant.fertilizerNpk ? escapeHtml(plant.fertilizerNpk) : "—" },
+    { label: "Fertilizer Method", value: plant.fertilizerMethod ? escapeHtml(plant.fertilizerMethod) : "—" }
   ];
 
   const nextWater = plant.waterInterval ? nextDue(plant._lastWater || plant.acquired || todayStr(), plant.waterInterval) : null;
   const nextFert = plant.fertInterval ? nextDue(plant._lastFert || plant.acquired || todayStr(), plant.fertInterval) : null;
 
-  const highlight = [];
-  if(nextWater) highlight.push(`Next watering: ${escapeHtml(nextWater)}`);
-  if(nextFert) highlight.push(`Next fertilizer: ${escapeHtml(nextFert)}`);
+  const highlightParts = [];
+  if(nextWater) highlightParts.push(`Next watering: ${escapeHtml(nextWater)}`);
+  if(nextFert) highlightParts.push(`Next fertilizer: ${escapeHtml(nextFert)}`);
 
-  const infoHtml = info.map(item=>`
+  const infoHtml = info.map(item => `
       <div>
         <dt>${item.label}</dt>
         <dd>${item.value || "—"}</dd>
       </div>
     `).join("");
 
-  const careHistory = store.care
-    .filter(r=>r.cultivarId===plant.id)
-    .slice()
-    .sort((a,b)=>b.date.localeCompare(a.date));
-
-  const careHtml = careHistory.length
-    ? `<ul class="profile-care-list">${careHistory.map(entry=>`
-        <li>
-          <strong>${escapeHtml(formatDate(entry.date))}</strong>
-          <div>${escapeHtml(entry.action)}</div>
-          ${entry.notes ? `<div class="muted">${escapeHtml(entry.notes)}</div>` : ""}
-        </li>
-      `).join("")}</ul>`
-    : `<p class="profile-empty">No care entries logged yet.</p>`;
+  const careHistory = isSavedPlant
+    ? store.care.filter(r => r.cultivarId === plant.id).slice().sort((a,b)=>b.date.localeCompare(a.date))
+    : [];
 
   const { src: photoSrc, placeholder } = plantPhoto(plant);
   const photoClasses = ["profile-photo", placeholder ? "placeholder" : ""].filter(Boolean).join(" ");
-  const photo = `<img src="${photoSrc}" alt="${escapeHtml(plantLabel(plant))}" class="${photoClasses}" />`;
   const title = plant.nickname || plant.cultivarName || "Unnamed plant";
-  const subtitle = plant.cultivarName && plant.cultivarName !== title ? plant.cultivarName : "";
-  const favoriteHeading = plant.favorite ? '<span class="sr-only">Favorited plant. </span><span class="card-plant-favorite-icon" aria-hidden="true">★</span>' : "";
+  const cultivarLine = plant.cultivarName && plant.cultivarName !== title ? `<div class="profile-subtitle">${escapeHtml(plant.cultivarName)}</div>` : "";
+  const altLabel = plantLabel(plant) || title;
+  const favoriteHeading = isFavorite ? '<span class="sr-only">Favorited plant. </span><span class="card-plant-favorite-icon" aria-hidden="true">★</span>' : "";
+  const photoUrlValue = plant.photo && !String(plant.photo).startsWith("data:") ? plant.photo : "";
+
+  function buildOverviewView(){
+    return `
+      <div class="profile-header">
+        <img src="${photoSrc}" alt="${escapeHtml(altLabel)}" class="${photoClasses}">
+        <div class="profile-summary">
+          <h3>${favoriteHeading}${escapeHtml(title)}</h3>
+          ${cultivarLine}
+          ${plant.notes ? `<p>${escapeHtml(plant.notes)}</p>` : `<p class="muted">No notes added.</p>`}
+          ${highlightParts.length ? `<div class="muted profile-highlights">${highlightParts.join(" · ")}</div>` : ""}
+          ${badges.length ? `<div class="profile-badges">${badges.join("")}</div>` : ""}
+        </div>
+      </div>
+      <div class="profile-details">
+        <dl class="profile-grid">
+          ${infoHtml}
+        </dl>
+      </div>
+    `;
+  }
+
+  function buildOverviewEdit(){
+    return `
+      <form id="plantOverviewForm" class="profile-overview-form">
+        <div class="profile-overview-edit-header">
+          <img src="${photoSrc}" alt="${escapeHtml(altLabel)}" class="${photoClasses}">
+          <div class="profile-edit-summary">
+            <h3>${escapeHtml(title || "New plant")}</h3>
+            ${cultivarLine}
+            <p class="muted small">Adjust identity, location, and care cadence without leaving the page.</p>
+          </div>
+        </div>
+        <div class="profile-overview-edit-grid">
+          <section>
+            <h4>Identity</h4>
+            <div class="form-field">
+              <label for="editCultivarName">Cultivar/Variety Name*</label>
+              <input id="editCultivarName" required value="${escapeHtml(plant.cultivarName || "")}">
+            </div>
+            <div class="form-field">
+              <label for="editNickname">Nickname</label>
+              <input id="editNickname" value="${escapeHtml(plant.nickname || "")}" placeholder="Optional display name">
+            </div>
+            <div class="form-field">
+              <label for="editHybridizer">Hybridizer</label>
+              <input id="editHybridizer" value="${escapeHtml(plant.hybridizer || "")}">
+            </div>
+            <div class="form-field">
+              <label for="editYear">Year</label>
+              <input id="editYear" value="${escapeHtml(plant.year || "")}" inputmode="numeric">
+            </div>
+            <div class="form-field">
+              <label for="editBlossom">Blossom Type</label>
+              <select id="editBlossom">
+                ${["","Single","Semi-double","Double","Star","Frilled","Fantasy","Chimera"].map(opt=>`<option value="${opt}"${plant.blossom===opt ? " selected" : ""}>${opt || "—"}</option>`).join("")}
+              </select>
+            </div>
+            <div class="form-field">
+              <label for="editColor">Blossom Color</label>
+              <input id="editColor" value="${escapeHtml(plant.color || "")}" placeholder="Lavender fantasy, variegated…">
+            </div>
+            <div class="form-field">
+              <label for="editLeaf">Leaf Type</label>
+              <select id="editLeaf">
+                ${["","Standard","Miniature","Semi-mini","Trailing","Variegated","Boy/Girl","Serrated"].map(opt=>`<option value="${opt}"${plant.leaf===opt ? " selected" : ""}>${opt || "—"}</option>`).join("")}
+              </select>
+            </div>
+            <div class="form-field">
+              <label for="editVariegation">Variegation</label>
+              <input id="editVariegation" value="${escapeHtml(plant.variegation || "")}" placeholder="Tommie Lou, white edge…">
+            </div>
+          </section>
+          <section>
+            <h4>Location &amp; Care</h4>
+            <div class="form-field">
+              <label for="editLocation">Location</label>
+              <input id="editLocation" value="${escapeHtml(plant.location || "")}" placeholder="Shelf, window, stand…">
+            </div>
+            <div class="form-field">
+              <label for="editPot">Pot Size (in)</label>
+              <input id="editPot" type="number" min="1" max="12" step="0.25" value="${escapeHtml(plant.pot || "")}">
+            </div>
+            <div class="form-field">
+              <label for="editAcquired">Acquired</label>
+              <input id="editAcquired" type="date" value="${escapeHtml(plant.acquired || "")}">
+            </div>
+            <div class="form-field">
+              <label for="editSource">Source</label>
+              <input id="editSource" value="${escapeHtml(plant.source || "")}" placeholder="Vendor, leaf, trade…">
+            </div>
+            <div class="form-field">
+              <label for="editWaterInterval">Watering Interval (days)</label>
+              <input id="editWaterInterval" type="number" min="1" value="${escapeHtml(String(plant.waterInterval ?? 7))}">
+            </div>
+            <div class="form-field">
+              <label for="editFertInterval">Fertilizer Interval (days)</label>
+              <input id="editFertInterval" type="number" min="1" value="${escapeHtml(String(plant.fertInterval ?? 30))}">
+            </div>
+            <div class="form-field">
+              <label for="editFertilizerNpk">Fertilizer NPK</label>
+              <input id="editFertilizerNpk" value="${escapeHtml(plant.fertilizerNpk || "")}" placeholder="14-12-14">
+            </div>
+            <div class="form-field">
+              <label for="editFertilizerMethod">Fertilizer Method</label>
+              <input id="editFertilizerMethod" value="${escapeHtml(plant.fertilizerMethod || "")}" placeholder="In water, soil drench…">
+            </div>
+          </section>
+          <section>
+            <h4>Photo</h4>
+            <div class="form-field">
+              <label for="editPhotoUrl">Photo URL</label>
+              <input id="editPhotoUrl" type="url" value="${escapeHtml(photoUrlValue)}" placeholder="https://example.com/african-violet.jpg">
+            </div>
+            <div class="form-field">
+              <label for="plantPhotoInput">Upload Image</label>
+              <input id="plantPhotoInput" type="file" accept="image/*">
+            </div>
+            ${plant.photo ? `<div class="form-field checkbox-field"><label><input type="checkbox" id="editRemovePhoto"> Remove current photo</label></div>` : ""}
+            <p class="muted small">Uploaded images stay on this device via local storage.</p>
+          </section>
+          <section class="full-width">
+            <h4>Notes</h4>
+            <div class="form-field">
+              <label for="editNotes" class="sr-only">Notes</label>
+              <textarea id="editNotes" rows="4" placeholder="Care observations, bloom tracking…">${escapeHtml(plant.notes || "")}</textarea>
+            </div>
+          </section>
+        </div>
+        <div class="profile-edit-actions">
+          <button type="button" class="secondary" id="plantOverviewCancel">Cancel</button>
+          <button type="submit" id="plantOverviewSave">Save Plant</button>
+        </div>
+      </form>
+    `;
+  }
+
+  function buildTimeline(){
+    if(!isSavedPlant){
+      return `<p class="muted">Save this plant to build a care timeline.</p>`;
+    }
+    if(!careHistory.length){
+      return `<p class="profile-empty">No care entries logged yet.</p>`;
+    }
+    return `
+      <ol class="timeline-list">
+        ${careHistory.map(entry=>`
+          <li>
+            <div class="timeline-marker" aria-hidden="true"></div>
+            <div class="timeline-content">
+              <div class="timeline-date">${escapeHtml(formatDate(entry.date))}</div>
+              <div class="timeline-action">${escapeHtml(entry.action)}</div>
+              ${entry.notes ? `<div class="timeline-notes muted">${escapeHtml(entry.notes)}</div>` : ""}
+            </div>
+          </li>
+        `).join("")}
+      </ol>
+    `;
+  }
+
+  const relatedProjects = isSavedPlant ? store.projects.filter(project => {
+    const parents = Array.isArray(project.parents) ? project.parents : [];
+    const cultivarLower = (plant.cultivarName || "").toLowerCase();
+    const nicknameLower = (plant.nickname || "").toLowerCase();
+    const textBlob = `${project.name || ""} ${project.goal || ""} ${project.notes || ""}`.toLowerCase();
+    if(cultivarLower && textBlob.includes(cultivarLower)) return true;
+    if(nicknameLower && textBlob.includes(nicknameLower)) return true;
+    return parents.some(parent => {
+      if(parent.cultivarId && plant.id && parent.cultivarId === plant.id) return true;
+      if(cultivarLower && parent.name && parent.name.toLowerCase() === cultivarLower) return true;
+      return false;
+    });
+  }) : [];
+
+  function buildProjects(){
+    if(!isSavedPlant){
+      return `<p class="muted">Save this plant to connect hybridization projects.</p>`;
+    }
+    if(!relatedProjects.length){
+      return `<p class="profile-empty">No projects linked yet.</p>`;
+    }
+    return `
+      <ul class="profile-projects">
+        ${relatedProjects.map(project=>`
+          <li class="profile-project-card">
+            <div class="profile-project-card-head">
+              <span class="profile-project-status status-${project.status}">${escapeHtml(projectStatusLabel(project.status))}</span>
+              <h5>${escapeHtml(project.name)}</h5>
+            </div>
+            ${project.goal ? `<p class="muted small">${escapeHtml(project.goal)}</p>` : ""}
+          </li>
+        `).join("")}
+      </ul>
+    `;
+  }
+
+  function buildPhotos(){
+    if(!isSavedPlant){
+      return `<p class="muted">Save this plant to add photos.</p>`;
+    }
+    return `
+      <div class="profile-photos">
+        <figure class="profile-photo-frame ${placeholder ? "placeholder" : ""}">
+          <img src="${photoSrc}" alt="${escapeHtml(altLabel)}">
+          <figcaption class="muted small">${placeholder ? "No photo yet – add one from the Overview tab." : "Primary portrait"}</figcaption>
+        </figure>
+        <p class="muted small">Capture rosette progress, bloom stages, and leaf texture. Additional gallery slots are on the roadmap.</p>
+      </div>
+    `;
+  }
+
+  function buildNotes(){
+    if(!isSavedPlant){
+      return `<p class="muted">Save this plant to keep running notes.</p>`;
+    }
+    if(editing){
+      return `<p class="muted">Notes can be updated from the Overview tab while editing.</p>`;
+    }
+    return `
+      <div class="profile-notes-editor">
+        <label for="notesQuickEdit">Notes</label>
+        <textarea id="notesQuickEdit" rows="8" placeholder="Care observations, bloom tracking…">${escapeHtml(plant.notes || "")}</textarea>
+        <p class="muted small">Updates save automatically.</p>
+      </div>
+    `;
+  }
+
+  const tabConfig = [
+    { id: "overview", label: "Overview" },
+    { id: "timeline", label: "Care Timeline" },
+    { id: "photos", label: "Photos" },
+    { id: "projects", label: "Projects" },
+    { id: "notes", label: "Notes" }
+  ];
+
+  const panelContent = {
+    overview: editing ? buildOverviewEdit() : buildOverviewView(),
+    timeline: disableTabs ? `<p class="muted">Save this plant to build a care timeline.</p>` : buildTimeline(),
+    photos: disableTabs ? `<p class="muted">Save this plant to add photos.</p>` : buildPhotos(),
+    projects: disableTabs ? `<p class="muted">Save this plant to connect hybridization projects.</p>` : buildProjects(),
+    notes: disableTabs ? `<p class="muted">Notes will be available after saving.</p>` : buildNotes()
+  };
+
+  const tabsHtml = tabConfig.map(tab => {
+    const isActive = plantProfileTab === tab.id;
+    const disabledAttr = disableTabs && tab.id !== "overview" ? " disabled aria-disabled=\"true\"" : "";
+    return `<button type="button" id="profile-tab-${tab.id}" class="profile-tab${isActive ? " active" : ""}" data-tab="${tab.id}" role="tab" aria-selected="${isActive}" aria-controls="profile-panel-${tab.id}"${disabledAttr}>${tab.label}</button>`;
+  }).join("");
+
+  const panelsHtml = tabConfig.map(tab => {
+    const isActive = plantProfileTab === tab.id;
+    const hiddenAttr = isActive ? "" : " hidden";
+    return `<section id="profile-panel-${tab.id}" class="profile-panel${isActive ? " active" : ""}" role="tabpanel" aria-labelledby="profile-tab-${tab.id}"${hiddenAttr}>${panelContent[tab.id]}</section>`;
+  }).join("");
 
   content.innerHTML = `
-    <div class="profile-header">
-      ${photo}
-      <div class="profile-summary">
-        <h3>${favoriteHeading}${escapeHtml(title)}</h3>
-        ${subtitle ? `<div class="profile-subtitle">${escapeHtml(subtitle)}</div>` : ""}
-        ${subtitle ? `<div class="profile-subtitle muted">${escapeHtml(subtitle)}</div>` : ""}
-        ${plant.notes ? `<p>${escapeHtml(plant.notes)}</p>` : `<p class="muted">No notes added.</p>`}
-        ${highlight.length ? `<div class="muted">${highlight.join(" · ")}</div>` : ""}
-        ${badges.length ? `<div class="profile-badges">${badges.join("")}</div>` : ""}
-      </div>
+    <div class="profile-tabs" role="tablist">
+      ${tabsHtml}
     </div>
-    <div class="profile-details">
-      <dl class="profile-grid">
-        ${infoHtml}
-      </dl>
-    </div>
-    <div class="profile-care">
-      <h4>Care history</h4>
-      ${careHtml}
+    <div class="profile-panels">
+      ${panelsHtml}
     </div>
   `;
+
+  $$(".profile-tab", content).forEach(btn => {
+    btn.addEventListener("click", () => {
+      if(btn.disabled) return;
+      setPlantProfileTab(btn.dataset.tab);
+    });
+  });
+
+  if(editing){
+    const form = $("#plantOverviewForm");
+    if(form){
+      form.addEventListener("submit", e => {
+        e.preventDefault();
+        savePlantEdit();
+      });
+    }
+    const cancelBtn = $("#plantOverviewCancel");
+    if(cancelBtn){
+      cancelBtn.addEventListener("click", e => {
+        e.preventDefault();
+        cancelPlantEdit();
+      });
+    }
+    const saveBtn = $("#plantOverviewSave");
+    if(saveBtn){
+      saveBtn.addEventListener("click", e => {
+        e.preventDefault();
+        savePlantEdit();
+      });
+    }
+  }else{
+    const notesTextarea = $("#notesQuickEdit");
+    if(notesTextarea){
+      const commit = () => quickUpdatePlantNotes(notesTextarea.value);
+      notesTextarea.addEventListener("change", commit);
+      notesTextarea.addEventListener("blur", commit);
+    }
+  }
 }
 
 const profileBackBtn = $("#profileBack");
 if(profileBackBtn) profileBackBtn.addEventListener("click", closePlantProfile);
 const profileEditBtn = $("#profileEdit");
 if(profileEditBtn) profileEditBtn.addEventListener("click", ()=>{
-  const plant = store.cultivars.find(c=>c.id===selectedCultivarId);
-  if(plant){
-    openCultivarDialog(plant);
+  if(plantEditorState.active){
+    cancelPlantEdit();
+  }else if(selectedCultivarId){
+    startPlantEdit(selectedCultivarId);
   }
 });
 const profileLogBtn = $("#profileLogCare");
