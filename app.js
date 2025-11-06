@@ -263,6 +263,125 @@ function formatFullDate(dateStr){
   return d.toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" });
 }
 
+function parsePotSize(value){
+  if(value == null) return null;
+  if(typeof value === "number" && Number.isFinite(value)) return value;
+  const numeric = parseFloat(String(value).replace(/[^0-9.]/g, ""));
+  return Number.isFinite(numeric) && numeric > 0 ? numeric : null;
+}
+
+function formatPotLabel(pot){
+  if(!pot) return "";
+  const rounded = Math.round(pot * 10) / 10;
+  return (Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1)).replace(/\.0$/, "");
+}
+
+function analyzeWateringProfile(plant){
+  const pot = parsePotSize(plant?.pot);
+  const combined = `${plant?.fertilizerMethod || ""} ${plant?.notes || ""}`.toLowerCase();
+  const wicking = /(wick|reservoir|self[-\s]?watering|semi[-\s]?hydro|leca|wicked)/.test(combined);
+  const chunky = /(chunk|perlite|pumice|lava|bark|gritty|fast[-\s]?drain|coarse)/.test(combined);
+  const peaty = /(peat|sphagnum|vermiculite|coco|soil mix|potting mix)/.test(combined);
+  let bias = 0;
+  if(wicking) bias += 2;
+  if(chunky) bias -= 1;
+  else if(peaty) bias += 1;
+  const descriptors = [];
+  if(pot){
+    descriptors.push(`${formatPotLabel(pot)}" pot`);
+  }
+  if(chunky){
+    descriptors.push("chunky mix");
+  }else if(peaty){
+    descriptors.push("peat-heavy mix");
+  }
+  if(wicking){
+    descriptors.push("wicking setup");
+  }
+  return { pot, bias, descriptors };
+}
+
+function suggestWaterInterval(plant, contextOverride){
+  const context = contextOverride || analyzeWateringProfile(plant);
+  let base = 7;
+  const pot = context.pot;
+  if(pot){
+    if(pot <= 2) base = 3;
+    else if(pot <= 2.5) base = 4;
+    else if(pot <= 3) base = 5;
+    else if(pot <= 4.5) base = 7;
+    else if(pot <= 5.5) base = 8;
+    else base = 9;
+  }
+  base += context.bias * 2;
+  return Math.min(Math.max(Math.round(base), 2), 28);
+}
+
+function waterIntervalFeedback(plant, rawValue, contextOverride){
+  const context = contextOverride || analyzeWateringProfile(plant);
+  const recommended = suggestWaterInterval(plant, context);
+  const descriptors = context.descriptors || [];
+  const descriptorText = descriptors.length ? ` (based on ${descriptors.join(", ")})` : "";
+  const suggestion = `Suggested: ${recommended} days${descriptorText}.`;
+  const strValue = typeof rawValue === "string" ? rawValue.trim() : rawValue == null ? "" : String(rawValue).trim();
+  if(strValue === ""){
+    return { message: suggestion, type: "hint", recommended };
+  }
+  const value = Number(rawValue);
+  if(!Number.isFinite(value)){
+    return { message: suggestion, type: "hint", recommended };
+  }
+  if(value <= 0){
+    return { message: `Watering interval must be at least 1 day. ${suggestion}`, type: "warning", recommended };
+  }
+  if(value > 30){
+    return { message: `Intervals over 30 days are rare for African violets; double-check your cadence. ${suggestion}`, type: "warning", recommended };
+  }
+  if(Math.abs(value - recommended) >= 4){
+    const direction = value > recommended ? "less often" : "more often";
+    return { message: `${suggestion} You're watering ${direction} than typical for this setup.`, type: "hint", recommended };
+  }
+  return { message: suggestion, type: "hint", recommended };
+}
+
+function attachWaterIntervalGuidance(form){
+  const waterInput = form?.querySelector?.("#editWaterInterval");
+  const hintEl = form?.querySelector?.("#waterIntervalHint");
+  if(!waterInput || !hintEl) return;
+  hintEl.setAttribute("aria-live", "polite");
+  const potInput = form.querySelector("#editPot");
+  const notesInput = form.querySelector("#editNotes");
+  const fertMethodInput = form.querySelector("#editFertilizerMethod");
+
+  const buildPlant = () => ({
+    ...plantEditorState.draft,
+    pot: potInput ? potInput.value : plantEditorState.draft?.pot,
+    notes: notesInput ? notesInput.value : plantEditorState.draft?.notes,
+    fertilizerMethod: fertMethodInput ? fertMethodInput.value : plantEditorState.draft?.fertilizerMethod
+  });
+
+  const render = () => {
+    const feedback = waterIntervalFeedback(buildPlant(), waterInput.value);
+    hintEl.textContent = feedback.message;
+    hintEl.classList.toggle("warning", feedback.type === "warning");
+    hintEl.classList.toggle("muted", feedback.type !== "warning");
+    if(feedback.type === "warning"){
+      waterInput.setAttribute("aria-invalid", "true");
+    }else{
+      waterInput.removeAttribute("aria-invalid");
+    }
+  };
+
+  [waterInput, potInput, notesInput, fertMethodInput].forEach(el => {
+    if(el){
+      el.addEventListener("input", render);
+      el.addEventListener("change", render);
+    }
+  });
+
+  render();
+}
+
 function generateRecurringDates(baseDateStr, intervalDays, rangeStartStr, rangeEndStr){
   const results = new Set();
   if(!intervalDays || intervalDays <= 0) return [];
@@ -421,17 +540,19 @@ function savePlantEdit(){
   draft.location = trimValue("editLocation");
   draft.acquired = trimValue("editAcquired");
   draft.source = trimValue("editSource");
-  const waterRaw = value("editWaterInterval");
-  draft.waterInterval = waterRaw ? Number(waterRaw) : 7;
-  const fertRaw = value("editFertInterval");
-  draft.fertInterval = fertRaw ? Number(fertRaw) : 30;
   draft.fertilizerNpk = trimValue("editFertilizerNpk");
   draft.fertilizerMethod = trimValue("editFertilizerMethod");
   draft.notes = trimValue("editNotes");
-
-  if(Number.isNaN(draft.waterInterval) || draft.waterInterval <= 0){
-    draft.waterInterval = 7;
+  const waterRaw = value("editWaterInterval");
+  const waterNumeric = waterRaw ? Number(waterRaw) : NaN;
+  const suggestedWater = suggestWaterInterval(draft);
+  if(Number.isFinite(waterNumeric) && waterNumeric > 0){
+    draft.waterInterval = Math.max(1, Math.round(waterNumeric));
+  }else{
+    draft.waterInterval = suggestedWater;
   }
+  const fertRaw = value("editFertInterval");
+  draft.fertInterval = fertRaw ? Number(fertRaw) : 30;
   if(Number.isNaN(draft.fertInterval) || draft.fertInterval <= 0){
     draft.fertInterval = 30;
   }
@@ -791,6 +912,15 @@ function renderPlantProfile(){
   }
 
   function buildOverviewEdit(){
+    const waterContext = analyzeWateringProfile(plant);
+    const recommendedWater = suggestWaterInterval(plant, waterContext);
+    const storedWater = Number(plant.waterInterval);
+    const currentWater = Number.isFinite(storedWater) && storedWater > 0 ? storedWater : recommendedWater;
+    const waterFeedback = waterIntervalFeedback(plant, currentWater, waterContext);
+    const waterHintClass = waterFeedback.type === "warning" ? "form-hint warning" : "form-hint muted";
+    const waterAriaInvalid = waterFeedback.type === "warning" ? " aria-invalid=\\\"true\\\"" : "";
+    const waterHintText = escapeHtml(waterFeedback.message);
+    const waterValueAttr = escapeHtml(String(currentWater));
     return `
       <form id="plantOverviewForm" class="profile-overview-form">
         <div class="profile-overview-edit-header">
@@ -861,7 +991,8 @@ function renderPlantProfile(){
             </div>
             <div class="form-field">
               <label for="editWaterInterval">Watering Interval (days)</label>
-              <input id="editWaterInterval" type="number" min="1" value="${escapeHtml(String(plant.waterInterval ?? 7))}">
+              <input id="editWaterInterval" type="number" min="1" value="${waterValueAttr}" aria-describedby="waterIntervalHint"${waterAriaInvalid}>
+              <p class="${waterHintClass}" id="waterIntervalHint">${waterHintText}</p>
             </div>
             <div class="form-field">
               <label for="editFertInterval">Fertilizer Interval (days)</label>
@@ -1046,6 +1177,7 @@ function renderPlantProfile(){
         e.preventDefault();
         savePlantEdit();
       });
+      attachWaterIntervalGuidance(form);
     }
     const cancelBtn = $("#plantOverviewCancel");
     if(cancelBtn){
