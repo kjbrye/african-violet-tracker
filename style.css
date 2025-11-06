@@ -49,6 +49,18 @@ body {
   min-height: 100vh;
 }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 header {
   position: sticky;
   top: 0;
@@ -365,6 +377,24 @@ button.danger {
   background: rgba(45, 69, 47, 0.12);
   color: var(--forest);
   border: 1px solid rgba(45, 69, 47, 0.35);
+}
+
+button.btn-favorite {
+  background: rgba(217, 164, 65, 0.18);
+  color: #8a5a09;
+  border: 1px solid rgba(217, 164, 65, 0.45);
+  box-shadow: 0 16px 28px rgba(217, 164, 65, 0.22);
+}
+
+button.btn-favorite:hover {
+  background: rgba(217, 164, 65, 0.28);
+  box-shadow: 0 20px 34px rgba(217, 164, 65, 0.28);
+}
+
+button.btn-favorite[aria-pressed="true"] {
+  background: rgba(217, 164, 65, 0.32);
+  color: #714704;
+  box-shadow: 0 22px 38px rgba(217, 164, 65, 0.32);
 }
 
 h2 {
@@ -904,6 +934,15 @@ dialog::backdrop {
     background-color 0.25s ease;
 }
 
+.card-plant--favorite {
+  border-color: #d7a33a;
+  box-shadow: 0 22px 46px rgba(215, 163, 58, 0.28);
+}
+
+.card-plant--favorite:hover {
+  border-color: #b9852c;
+}
+
 .card-plant:hover {
   transform: translateY(-3px);
   box-shadow: 0 26px 44px rgba(45, 69, 47, 0.25);
@@ -965,6 +1004,14 @@ dialog::backdrop {
   border-color: rgba(76, 106, 75, 0.3);
   background: rgba(76, 106, 75, 0.08);
   color: var(--forest);
+}
+
+.card-plant-favorite-icon {
+  font-size: 1.1em;
+  color: #d19a2b;
+  margin-right: 0.4rem;
+  display: inline-flex;
+  align-items: center;
 }
 
 .card-plant-notes {
@@ -1315,6 +1362,11 @@ footer {
 
 #plantProfile {
   position: relative;
+}
+
+#plantProfile.is-favorite {
+  border-color: rgba(215, 163, 58, 0.6);
+  box-shadow: 0 26px 48px rgba(215, 163, 58, 0.25);
 }
 
 .profile-top {
