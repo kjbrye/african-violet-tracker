@@ -2603,3 +2603,70 @@ function plantPhoto(plant){
   }
   return { src: PLACEHOLDER_PHOTO, placeholder: true };
 }
+// AUTH
+async function ensureSession(){
+  const { data: { session } } = await supabase.auth.getSession();
+  supabase.auth.onAuthStateChange((_evt, s) => { renderAuthUI(s); if(s) cloudPull(); });
+  renderAuthUI(session);
+}
+function renderAuthUI(session){
+  const s = $("#authStatus"), email = $("#authEmail");
+  const magic = $("#btnMagic"), out = $("#btnSignOut");
+  if(session?.user){ s.textContent = `Signed in as ${session.user.email}`;
+    email.style.display="none"; magic.style.display="none"; out.style.display=""; }
+  else { s.textContent="Not signed in"; email.style.display=""; magic.style.display=""; out.style.display="none"; }
+}
+$("#btnMagic").addEventListener("click", async ()=>{
+  const email = $("#authEmail").value.trim();
+  if(!email) return alert("Enter email");
+  const { error } = await supabase.auth.signInWithOtp({ email });
+  if(error) alert(error.message); else alert("Check your email for the sign-in link.");
+});
+$("#btnSignOut").addEventListener("click", ()=> supabase.auth.signOut());
+
+// CLOUD SYNC
+async function cloudPull(){
+  const { data: { user } } = await supabase.auth.getUser(); if(!user) return;
+  const { data: cvs } = await supabase.from("cultivars").select("*").order("name");
+  const { data: care } = await supabase.from("care").select("*").order("date");
+  // merge: cloud wins; keep any strictly local items
+  const map = Object.fromEntries((cvs||[]).map(c=>[c.id,c]));
+  store.cultivars.forEach(local=>{ if(!map[local.id]) map[local.id] = local; });
+  store.cultivars = Object.values(map);
+  store.care = care || [];
+  localSave(); // re-render
+}
+
+async function cloudPushAll(){
+  const { data: { user } } = await supabase.auth.getUser(); if(!user) return;
+  // upsert cultivars
+  const cvPayload = store.cultivars.map(c=>({
+    id:c.id, user_id:user.id, name:c.name,
+    hybridizer:c.hybridizer||null, year:c.year?Number(c.year):null,
+    blossom:c.blossom||null, color:c.color||null, leaf:c.leaf||null, variegation:c.variegation||null,
+    pot:c.pot?Number(c.pot):null, location:c.location||null, acquired:c.acquired||null, source:c.source||null,
+    water_interval:c.waterInterval??7, fert_interval:c.fertInterval??30,
+    notes:c.notes||null, photo:c.photo||null,
+    last_water:c._lastWater||null, last_fert:c._lastFert||null
+  }));
+  await supabase.from("cultivars").upsert(cvPayload, { onConflict: "id" });
+
+  // replace care log (simple, safe)
+  await supabase.from("care").delete().eq("user_id", user.id);
+  if(store.care.length){
+    await supabase.from("care").insert(store.care.map(r=>({
+      id:r.id, user_id:user.id, cultivar_id:r.cultivarId,
+      date:r.date, action:r.action, notes:r.notes||null
+    })));
+  }
+}
+
+// keep your original local save, but mirror to cloud when signed in
+const localSave = store ? saveStore : ()=>{};
+saveStore = function(){
+  localStorage.setItem(STORE_KEY, JSON.stringify(store));
+  renderAll();
+  cloudPushAll().catch(console.error);
+};
+
+ensureSession();
