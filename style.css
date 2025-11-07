@@ -110,6 +110,11 @@ body::after {
   display: block;
 }
 
+.tab > :not(dialog) {
+  position: relative;
+  z-index: 1;
+}
+
 p {
   color: rgba(var(--ethereal-mist-rgb), 0.9);
 }
