@@ -237,7 +237,7 @@ main {
   overflow: hidden;
   background:
     linear-gradient(160deg, rgba(var(--ethereal-mist-rgb), 0.62), rgba(var(--luminous-lilac-rgb), 0.32)),
-    linear-gradient(140deg, rgba(var(--amethyst-noir-rgb), 0.03), rgba(var(--amethyst-noir-rgb), 0.008));
+    linear-gradient(140deg, rgba(var(--violet-veil-rgb), 0.03), rgba(var(--violet-veil-rgb), 0.008));
   border: 1px solid rgba(var(--ethereal-mist-rgb), 0.7);
   border-radius: var(--radius-lg);
   padding: clamp(1.6rem, 4vw, 2.4rem);
