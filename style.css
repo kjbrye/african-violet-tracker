@@ -319,6 +319,94 @@ main {
   border-color: rgba(var(--ethereal-mist-rgb), 0.75);
 }
 
+#tab-hybrid {
+  position: relative;
+  isolation: isolate;
+}
+
+#tab-hybrid::before {
+  content: "";
+  position: absolute;
+  inset: -8% -10% -4% -10%;
+  background:
+    radial-gradient(120% 110% at 18% 16%, rgba(var(--cool-mint-vein-rgb), 0.16), transparent 62%),
+    radial-gradient(120% 110% at 82% 78%, rgba(var(--bloom-glow-rgb), 0.2), transparent 68%),
+    url("assets/botanical-sketch.svg");
+  background-repeat: no-repeat;
+  background-size: 120% 120%, 120% 120%, 1100px auto;
+  background-position: 12% 12%, 88% 82%, center;
+  mix-blend-mode: soft-light;
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: -1;
+  filter: saturate(115%);
+}
+
+#tab-hybrid > * {
+  position: relative;
+  z-index: 1;
+}
+
+#tab-hybrid .card::before {
+  background:
+    radial-gradient(160% 140% at 14% 18%, rgba(var(--cool-mint-vein-rgb), 0.28), transparent 58%),
+    url("assets/botanical-sketch.svg"),
+    linear-gradient(125deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0) 60%),
+    radial-gradient(circle at 20% 0%, rgba(var(--ethereal-mist-rgb), 0.32), transparent 60%),
+    radial-gradient(120% 120% at 85% -10%, rgba(var(--luminous-lilac-rgb), 0.18), transparent 72%);
+  background-repeat: no-repeat;
+  background-size: 200% 200%, 980px auto, auto, auto, auto;
+  background-position: 0% 8%, 118% 38%, 0 0, 0 0, 0 0;
+  opacity: 0.95;
+}
+
+#tab-hybrid .card::after {
+  background:
+    radial-gradient(120% 90% at 14% 20%, rgba(var(--bloom-glow-rgb), 0.26), transparent 60%),
+    radial-gradient(110% 110% at 82% 84%, rgba(var(--cool-mint-vein-rgb), 0.22), transparent 70%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0) 120%);
+  opacity: 0.65;
+}
+
+#tab-hybrid .project-card {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+#tab-hybrid .project-card::before,
+#tab-hybrid .project-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  border-radius: inherit;
+}
+
+#tab-hybrid .project-card::before {
+  background:
+    url("assets/botanical-sketch.svg"),
+    radial-gradient(120% 120% at 18% 82%, rgba(var(--bloom-glow-rgb), 0.24), transparent 70%);
+  background-repeat: no-repeat;
+  background-size: 520px auto, 160% 160%;
+  background-position: right -160px top -40px, 0 0;
+  mix-blend-mode: soft-light;
+  opacity: 0.6;
+}
+
+#tab-hybrid .project-card::after {
+  background:
+    radial-gradient(120% 90% at 80% 10%, rgba(var(--cool-mint-vein-rgb), 0.18), transparent 70%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.16), transparent 65%);
+  opacity: 0.7;
+}
+
+#tab-hybrid .project-card > * {
+  position: relative;
+  z-index: 1;
+}
+
 .card-subtitle {
   margin: 0 0 1.1rem;
   color: rgba(var(--deep-plum-ink-rgb), 0.72);
@@ -1014,10 +1102,33 @@ dialog::backdrop {
 }
 
 #projectDialog .project-form {
+  position: relative;
+  isolation: isolate;
   padding: 2.4rem 2.6rem;
   gap: 1.5rem;
   max-height: 80vh;
   overflow-y: auto;
+}
+
+#projectDialog .project-form::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(160% 140% at 12% 14%, rgba(var(--bloom-glow-rgb), 0.2), transparent 62%),
+    url("assets/botanical-sketch.svg");
+  background-repeat: no-repeat;
+  background-size: 220% 220%, 880px auto;
+  background-position: 0 0, right -140px top 20px;
+  mix-blend-mode: soft-light;
+  opacity: 0.45;
+  pointer-events: none;
+  z-index: 0;
+}
+
+#projectDialog .project-form > * {
+  position: relative;
+  z-index: 1;
 }
 
 #projectDialog h3 {
