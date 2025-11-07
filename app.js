@@ -41,6 +41,8 @@ let calendarViewDate = startOfMonth(new Date());
 let plantEditorState = { active: false, draft: null, isNew: false };
 let plantProfileTab = "overview";
 let cloudPushTimer = null;
+let currentUser = null;
+let pendingCloudPush = false;
 let carePage = 1;
 let carePageSize = 10;
 function loadStore(){
@@ -2709,15 +2711,23 @@ function isMissingTableError(error){
 async function ensureSession(){
   if(typeof supabase === "undefined") return;
   const { data: { session } } = await supabase.auth.getSession();
+  currentUser = session?.user || null;
   supabase.auth.onAuthStateChange((_evt, s) => {
+    currentUser = s?.user || null;
     renderAuthUI(s);
+    if(pendingCloudPush && currentUser){
+      queueCloudPush();
+    }
     if(s){
-      cloudPull();
+      cloudPull(s.user);
     }
   });
   renderAuthUI(session);
   if(session){
-    cloudPull();
+    if(pendingCloudPush && currentUser){
+      queueCloudPush();
+    }
+    cloudPull(session.user);
   }
 }
 function setAuthExpanded(expanded){
@@ -2836,9 +2846,9 @@ $("#btnSignOut").addEventListener("click", ()=> {
   supabase.auth.signOut();
 });
 
-async function cloudPull(){
+async function cloudPull(userOverride){
   if(typeof supabase === "undefined") return;
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = userOverride || currentUser || (await supabase.auth.getUser())?.data?.user || null;
   if(!user) return;
   const { data, error } = await supabase
     .from(CLOUD_TABLE)
@@ -2905,9 +2915,9 @@ async function cloudPullLegacy(user){
 }
 
 async function cloudPushAll(){
-  if(typeof supabase === "undefined") return;
-  const { data: { user } } = await supabase.auth.getUser();
-  if(!user) return;
+  if(typeof supabase === "undefined") return false;
+  const user = currentUser || (await supabase.auth.getUser())?.data?.user || null;
+  if(!user) return false;
   const payload = {
     user_id: user.id,
     data: store,
@@ -2916,10 +2926,10 @@ async function cloudPushAll(){
   const { error } = await supabase
     .from(CLOUD_TABLE)
     .upsert(payload, { onConflict: "user_id" });
-  if(!error) return;
+  if(!error) return true;
   if(isMissingTableError(error)){
-    await cloudPushLegacy(user);
-    return;
+    const legacyResult = await cloudPushLegacy(user);
+    return legacyResult !== false;
   }
   throw error;
 }
@@ -2974,14 +2984,16 @@ async function cloudPushLegacy(user){
       }));
       await supabase.from("care").insert(carePayload);
     }
+    return true;
   }catch(err){
-    if(isMissingTableError(err)) return;
+    if(isMissingTableError(err)) return false;
     console.error("Legacy cloud push failed", err);
     throw err;
   }
 }
 
 function queueCloudPush(){
+  pendingCloudPush = true;
   if(typeof supabase === "undefined" || !supabase?.auth) return;
   if(cloudPushTimer){
     clearTimeout(cloudPushTimer);
@@ -2989,7 +3001,10 @@ function queueCloudPush(){
   cloudPushTimer = setTimeout(async ()=>{
     cloudPushTimer = null;
     try{
-      await cloudPushAll();
+      const pushed = await cloudPushAll();
+      if(pushed){
+        pendingCloudPush = false;
+      }
     }catch(err){
       console.error("Cloud sync failed", err);
     }
