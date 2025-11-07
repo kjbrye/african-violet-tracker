@@ -36,16 +36,40 @@
       <button class="nav-btn" data-tab="tab-settings" aria-controls="tab-settings" aria-selected="false">Settings</button>
     </nav>
   </header>
-<div id="authBar" class="card" style="margin:1rem;">
-  <span id="authStatus">Not signed in</span>
-  <div id="authControls">
-    <input id="authEmail" type="email" placeholder="you@example.com">
-    <input id="authPassword" type="password" placeholder="Password">
-    <button id="btnSignIn" type="button">Sign in</button>
-    <button id="btnSignUp" type="button" class="secondary">Create account</button>
+  <div id="authWidget" class="auth-widget collapsed" aria-expanded="false">
+    <button
+      id="authToggle"
+      class="auth-toggle"
+      type="button"
+      aria-haspopup="dialog"
+      aria-expanded="false"
+      aria-controls="authPanel"
+    >
+      <span id="authToggleLabel">Sign in</span>
+    </button>
+    <div
+      id="authPanel"
+      class="auth-panel"
+      role="dialog"
+      aria-modal="false"
+      aria-labelledby="authStatus"
+      aria-hidden="true"
+    >
+      <div class="auth-panel-header">
+        <span id="authStatus" class="auth-status">Not signed in</span>
+        <button id="authClose" class="auth-close" type="button" aria-label="Close account panel">×</button>
+      </div>
+      <div id="authControls" class="auth-controls">
+        <input id="authEmail" type="email" placeholder="you@example.com" autocomplete="email" />
+        <input id="authPassword" type="password" placeholder="Password" autocomplete="current-password" />
+        <div class="auth-actions">
+          <button id="btnSignIn" type="button">Sign in</button>
+          <button id="btnSignUp" type="button" class="secondary">Create account</button>
+        </div>
+      </div>
+      <button id="btnSignOut" type="button" class="auth-signout" hidden>Sign out</button>
+    </div>
   </div>
-  <button id="btnSignOut" style="display:none;">Sign out</button>
-</div>
 
   <main>
     <!-- DASHBOARD -->
@@ -278,6 +302,20 @@
           </thead>
           <tbody></tbody>
         </table>
+        <div class="pagination-controls" id="carePagination">
+          <label class="page-size">Rows per page
+            <select id="carePageSize">
+              <option value="10">10</option>
+              <option value="25">25</option>
+              <option value="50">50</option>
+            </select>
+          </label>
+          <div class="page-nav">
+            <button type="button" id="carePrevPage" aria-label="Previous page">Previous</button>
+            <span id="carePageStatus" role="status" aria-live="polite"></span>
+            <button type="button" id="careNextPage" aria-label="Next page">Next</button>
+          </div>
+        </div>
       </div>
     </section>
 

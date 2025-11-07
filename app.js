@@ -43,6 +43,8 @@ let plantProfileTab = "overview";
 let cloudPushTimer = null;
 let currentUser = null;
 let pendingCloudPush = false;
+let carePage = 1;
+let carePageSize = 10;
 function loadStore(){
   try{
     const raw = localStorage.getItem(STORE_KEY);
@@ -2081,8 +2083,24 @@ function renderCareTable(){
   if(fFrom) rows = rows.filter(r=>r.date>=fFrom);
   if(fTo) rows = rows.filter(r=>r.date<=fTo);
 
+  const sizeSelect = $("#carePageSize");
+  if(sizeSelect && Number(sizeSelect.value) !== carePageSize){
+    sizeSelect.value = String(carePageSize);
+  }
+
+  const totalRows = rows.length;
+  const totalPages = carePageSize > 0 ? Math.ceil(totalRows / carePageSize) : 0;
+  if(totalPages === 0){
+    carePage = 1;
+  }else if(carePage > totalPages){
+    carePage = totalPages;
+  }
+  const startIndex = totalRows === 0 ? 0 : (carePage - 1) * carePageSize;
+  const endIndex = totalRows === 0 ? 0 : startIndex + carePageSize;
+  const pageRows = totalRows === 0 ? [] : rows.slice(startIndex, endIndex);
+
   tbody.innerHTML = "";
-  if(rows.length===0){
+  if(pageRows.length===0){
     const tr = document.createElement("tr");
     const td = document.createElement("td");
     td.colSpan = 5;
@@ -2090,33 +2108,80 @@ function renderCareTable(){
     td.textContent = "No care entries match the filters.";
     tr.appendChild(td);
     tbody.appendChild(tr);
-    return;
-  }
-  rows.forEach(r=>{
-    const tr = document.createElement("tr");
-    const c = store.cultivars.find(x=>x.id===r.cultivarId);
-    tr.innerHTML = `
-      <td>${escapeHtml(formatDate(r.date))}</td>
-      <td>${c ? escapeHtml(plantLabel(c)) : "—"}</td>
-      <td>${escapeHtml(r.action)}</td>
-      <td>${r.notes ? escapeHtml(r.notes) : ""}</td>
-      <td class="row-actions"></td>
-    `;
-    const actions = tr.querySelector(".row-actions");
-    const del = document.createElement("button"); del.textContent = "Delete"; del.className="danger";
-    del.addEventListener("click", ()=>{
-      if(confirm("Delete this care entry?")){
-        store.care = store.care.filter(x=>x.id!==r.id);
-        saveStore();
-      }
+  }else{
+    pageRows.forEach(r=>{
+      const tr = document.createElement("tr");
+      const c = store.cultivars.find(x=>x.id===r.cultivarId);
+      tr.innerHTML = `
+        <td>${escapeHtml(formatDate(r.date))}</td>
+        <td>${c ? escapeHtml(plantLabel(c)) : "—"}</td>
+        <td>${escapeHtml(r.action)}</td>
+        <td>${r.notes ? escapeHtml(r.notes) : ""}</td>
+        <td class="row-actions"></td>
+      `;
+      const actions = tr.querySelector(".row-actions");
+      const del = document.createElement("button"); del.textContent = "Delete"; del.className="danger";
+      del.addEventListener("click", ()=>{
+        if(confirm("Delete this care entry?")){
+          store.care = store.care.filter(x=>x.id!==r.id);
+          saveStore();
+        }
+      });
+      actions.appendChild(del);
+      tbody.appendChild(tr);
     });
-    actions.appendChild(del);
-    tbody.appendChild(tr);
+  }
+
+  const status = $("#carePageStatus");
+  if(status){
+    if(totalRows === 0){
+      status.textContent = "No entries";
+    }else{
+      const pageCount = Math.max(totalPages, 1);
+      const shownStart = startIndex + 1;
+      const shownEnd = Math.min(startIndex + pageRows.length, totalRows);
+      status.textContent = `Page ${carePage} of ${pageCount} · ${shownStart}-${shownEnd} of ${totalRows}`;
+    }
+  }
+  const prev = $("#carePrevPage");
+  const next = $("#careNextPage");
+  if(prev) prev.disabled = totalRows === 0 || carePage <= 1;
+  if(next) next.disabled = totalRows === 0 || (totalPages > 0 && carePage >= totalPages);
+}
+const careFilterIds = ["careFilterCultivar","careFilterAction","careFilterFrom","careFilterTo"];
+careFilterIds.forEach(id=>{
+  $("#"+id).addEventListener("change", ()=>{
+    carePage = 1;
+    renderCareTable();
+  });
+});
+
+const carePrevPageBtn = $("#carePrevPage");
+if(carePrevPageBtn){
+  carePrevPageBtn.addEventListener("click", ()=>{
+    carePage = Math.max(1, carePage - 1);
+    renderCareTable();
   });
 }
-["careFilterCultivar","careFilterAction","careFilterFrom","careFilterTo"].forEach(id=>{
-  $("#"+id).addEventListener("change", renderCareTable);
-});
+const careNextPageBtn = $("#careNextPage");
+if(careNextPageBtn){
+  careNextPageBtn.addEventListener("click", ()=>{
+    carePage += 1;
+    renderCareTable();
+  });
+}
+const carePageSizeSelect = $("#carePageSize");
+if(carePageSizeSelect){
+  carePageSizeSelect.value = String(carePageSize);
+  carePageSizeSelect.addEventListener("change", ()=>{
+    const nextSize = Number(carePageSizeSelect.value) || 10;
+    if(nextSize !== carePageSize){
+      carePageSize = nextSize;
+      carePage = 1;
+      renderCareTable();
+    }
+  });
+}
 
 $("#btnExportCSV").addEventListener("click", ()=>{
   const rows = [["Date","Plant","Action","Notes"]];
@@ -2665,20 +2730,70 @@ async function ensureSession(){
     cloudPull(session.user);
   }
 }
+function setAuthExpanded(expanded){
+  const widget = $("#authWidget");
+  const toggle = $("#authToggle");
+  const panel = $("#authPanel");
+  if(!widget || !toggle || !panel) return;
+  widget.classList.toggle("collapsed", !expanded);
+  widget.setAttribute("aria-expanded", expanded ? "true" : "false");
+  toggle.setAttribute("aria-expanded", expanded ? "true" : "false");
+  panel.setAttribute("aria-hidden", expanded ? "false" : "true");
+  if(expanded){
+    const controls = $("#authControls");
+    const focusTarget = controls && !controls.hidden ? $("#authEmail") : $("#btnSignOut");
+    if(focusTarget){
+      try {
+        focusTarget.focus({ preventScroll: true });
+      } catch (_err) {
+        focusTarget.focus();
+      }
+    }
+  }
+}
+const authToggle = $("#authToggle");
+if(authToggle){
+  authToggle.addEventListener("click", () => {
+    const widget = $("#authWidget");
+    const shouldExpand = widget?.classList.contains("collapsed");
+    setAuthExpanded(!!shouldExpand);
+  });
+}
+const authClose = $("#authClose");
+if(authClose){
+  authClose.addEventListener("click", () => setAuthExpanded(false));
+}
+document.addEventListener("click", (evt) => {
+  const widget = $("#authWidget");
+  if(!widget) return;
+  if(widget.contains(evt.target)) return;
+  setAuthExpanded(false);
+});
+document.addEventListener("keydown", (evt) => {
+  if(evt.key === "Escape"){
+    setAuthExpanded(false);
+  }
+});
 function renderAuthUI(session){
   const s = $("#authStatus"), password = $("#authPassword");
   const controls = $("#authControls"), out = $("#btnSignOut");
+  const toggleLabel = $("#authToggleLabel");
+  const toggle = $("#authToggle");
   if(session?.user){
     s.textContent = `Signed in as ${session.user.email}`;
-    if(controls) controls.style.display="none";
-    if(out) out.style.display="";
+    if(controls) controls.hidden = true;
+    if(out) out.hidden = false;
     if(password) password.value="";
+    if(toggleLabel) toggleLabel.textContent = "Account";
+    if(toggle) toggle.setAttribute("aria-label", `Account options for ${session.user.email}`);
   }
   else {
     s.textContent="Not signed in";
-    if(controls) controls.style.display="";
-    if(out) out.style.display="none";
+    if(controls) controls.hidden = false;
+    if(out) out.hidden = true;
     if(password) password.value="";
+    if(toggleLabel) toggleLabel.textContent = "Sign in";
+    if(toggle) toggle.setAttribute("aria-label", "Open sign in panel");
   }
 }
 $("#btnSignIn").addEventListener("click", async (evt)=>{
@@ -2696,6 +2811,7 @@ $("#btnSignIn").addEventListener("click", async (evt)=>{
       return;
     }
     $("#authPassword").value = "";
+    setAuthExpanded(false);
   } finally {
     btn.disabled = false;
   }
@@ -2720,11 +2836,15 @@ $("#btnSignUp").addEventListener("click", async (evt)=>{
     }else{
       alert("Account created. Check your email to confirm your address.");
     }
+    setAuthExpanded(false);
   } finally {
     btn.disabled = false;
   }
 });
-$("#btnSignOut").addEventListener("click", ()=> supabase.auth.signOut());
+$("#btnSignOut").addEventListener("click", ()=> {
+  setAuthExpanded(false);
+  supabase.auth.signOut();
+});
 
 async function cloudPull(userOverride){
   if(typeof supabase === "undefined") return;
