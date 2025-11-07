@@ -292,25 +292,132 @@ main {
   color: rgba(var(--deep-plum-ink-rgb), 0.85);
 }
 
-#authBar {
+.auth-widget {
+  position: fixed;
+  bottom: clamp(1rem, 5vw, 2rem);
+  right: clamp(1rem, 5vw, 2rem);
+  z-index: 12;
   display: flex;
   flex-direction: column;
+  align-items: flex-end;
   gap: 0.75rem;
 }
 
-#authControls {
+.auth-toggle {
+  border: none;
+  border-radius: 999px;
+  padding: 0.55rem 1.2rem;
+  font: 600 0.95rem/1 var(--font-ui);
+  background: linear-gradient(135deg, rgba(var(--luminous-lilac-rgb), 0.8), rgba(var(--bloom-glow-rgb), 0.92));
+  color: var(--deep-plum-ink);
+  cursor: pointer;
+  box-shadow: 0 16px 28px rgba(var(--deep-plum-ink-rgb), 0.35);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.auth-toggle:hover,
+.auth-toggle:focus-visible {
+  transform: translateY(-2px);
+  box-shadow: 0 22px 40px rgba(var(--deep-plum-ink-rgb), 0.4);
+  outline: none;
+}
+
+.auth-panel {
+  width: min(22rem, calc(100vw - 2.5rem));
+  padding: 1.25rem;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(145deg, rgba(var(--ethereal-mist-rgb), 0.96), rgba(var(--luminous-lilac-rgb), 0.85));
+  box-shadow: 0 28px 48px rgba(var(--deep-plum-ink-rgb), 0.45);
+  border: 1px solid rgba(var(--deep-plum-ink-rgb), 0.1);
+  color: var(--deep-plum-ink);
+  transform-origin: top right;
+  transform: translateY(12px) scale(0.96);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.auth-widget:not(.collapsed) .auth-panel {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+}
+
+.auth-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+
+.auth-status {
+  font-weight: 600;
+  color: rgba(var(--deep-plum-ink-rgb), 0.8);
+}
+
+.auth-close {
+  background: transparent;
+  border: none;
+  font-size: 1.4rem;
+  line-height: 1;
+  color: rgba(var(--deep-plum-ink-rgb), 0.6);
+  cursor: pointer;
+  padding: 0;
+}
+
+.auth-close:hover,
+.auth-close:focus-visible {
+  color: rgba(var(--deep-plum-ink-rgb), 0.9);
+  outline: none;
+}
+
+.auth-controls {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.auth-controls input {
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(var(--deep-plum-ink-rgb), 0.2);
+  font: 500 0.95rem/1.25 var(--font-ui);
+  color: var(--deep-plum-ink);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: inset 0 1px 2px rgba(var(--deep-plum-ink-rgb), 0.1);
+}
+
+.auth-controls input:focus-visible {
+  outline: 2px solid rgba(var(--violet-veil-rgb), 0.35);
+  outline-offset: 1px;
+}
+
+.auth-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
 }
 
-#authControls input {
-  flex: 1 1 14rem;
-  min-width: 12rem;
+.auth-actions button {
+  flex: 1 1 8rem;
 }
 
-#authControls button {
-  flex: 0 0 auto;
+.auth-signout {
+  margin-top: 0.85rem;
+  width: 100%;
+}
+
+@media (max-width: 600px) {
+  .auth-widget {
+    bottom: clamp(0.75rem, 4vw, 1.5rem);
+    right: clamp(0.75rem, 4vw, 1.5rem);
+  }
+
+  .auth-toggle {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+  }
 }
 
 .card:hover {
