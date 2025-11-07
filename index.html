@@ -278,6 +278,20 @@
           </thead>
           <tbody></tbody>
         </table>
+        <div class="pagination-controls" id="carePagination">
+          <label class="page-size">Rows per page
+            <select id="carePageSize">
+              <option value="10">10</option>
+              <option value="25">25</option>
+              <option value="50">50</option>
+            </select>
+          </label>
+          <div class="page-nav">
+            <button type="button" id="carePrevPage" aria-label="Previous page">Previous</button>
+            <span id="carePageStatus" role="status" aria-live="polite"></span>
+            <button type="button" id="careNextPage" aria-label="Next page">Next</button>
+          </div>
+        </div>
       </div>
     </section>
 
