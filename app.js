@@ -2712,22 +2712,26 @@ async function ensureSession(){
   if(typeof supabase === "undefined") return;
   const { data: { session } } = await supabase.auth.getSession();
   currentUser = session?.user || null;
-  supabase.auth.onAuthStateChange((_evt, s) => {
-    currentUser = s?.user || null;
-    renderAuthUI(s);
+  const syncAfterAuth = async (user) => {
+    try{
+      await cloudPull(user);
+    }catch(err){
+      console.error("Failed to pull cloud data after auth change", err);
+    }
     if(pendingCloudPush && currentUser){
       queueCloudPush();
     }
+  };
+  supabase.auth.onAuthStateChange(async (_evt, s) => {
+    currentUser = s?.user || null;
+    renderAuthUI(s);
     if(s){
-      cloudPull(s.user);
+      await syncAfterAuth(s.user);
     }
   });
   renderAuthUI(session);
   if(session){
-    if(pendingCloudPush && currentUser){
-      queueCloudPush();
-    }
-    cloudPull(session.user);
+    await syncAfterAuth(session.user);
   }
 }
 function setAuthExpanded(expanded){
