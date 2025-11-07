@@ -2699,7 +2699,6 @@ function plantPhoto(plant){
   return { src: PLACEHOLDER_PHOTO, placeholder: true };
 }
 // AUTH & CLOUD SYNC
-const CLOUD_TABLE = "user_store";
 
 function isMissingTableError(error){
   if(!error) return false;
