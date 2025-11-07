@@ -213,6 +213,27 @@ main {
 
 .tab {
   display: none;
+  position: relative;
+  isolation: isolate;
+  z-index: 0;
+}
+
+.tab::before {
+  content: "";
+  position: absolute;
+  inset: -4rem;
+  background: url("assets/botanical-sketch.svg");
+  background-repeat: no-repeat;
+  background-size: min(1200px, 95vw) auto;
+  background-position: center top;
+  opacity: 0.35;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.tab > * {
+  position: relative;
+  z-index: 1;
 }
 
 .tab.active {
@@ -319,44 +340,15 @@ main {
   border-color: rgba(var(--ethereal-mist-rgb), 0.75);
 }
 
-#tab-hybrid {
-  position: relative;
-  isolation: isolate;
-}
-
-#tab-hybrid::before {
-  content: "";
-  position: absolute;
-  inset: -8% -10% -4% -10%;
-  background:
-    radial-gradient(120% 110% at 18% 16%, rgba(var(--cool-mint-vein-rgb), 0.16), transparent 62%),
-    radial-gradient(120% 110% at 82% 78%, rgba(var(--bloom-glow-rgb), 0.2), transparent 68%),
-    url("assets/botanical-sketch.svg");
-  background-repeat: no-repeat;
-  background-size: 120% 120%, 120% 120%, 1100px auto;
-  background-position: 12% 12%, 88% 82%, center;
-  mix-blend-mode: soft-light;
-  opacity: 0.5;
-  pointer-events: none;
-  z-index: -1;
-  filter: saturate(115%);
-}
-
-#tab-hybrid > * {
-  position: relative;
-  z-index: 1;
-}
-
 #tab-hybrid .card::before {
   background:
     radial-gradient(160% 140% at 14% 18%, rgba(var(--cool-mint-vein-rgb), 0.28), transparent 58%),
-    url("assets/botanical-sketch.svg"),
     linear-gradient(125deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0) 60%),
     radial-gradient(circle at 20% 0%, rgba(var(--ethereal-mist-rgb), 0.32), transparent 60%),
     radial-gradient(120% 120% at 85% -10%, rgba(var(--luminous-lilac-rgb), 0.18), transparent 72%);
   background-repeat: no-repeat;
-  background-size: 200% 200%, 980px auto, auto, auto, auto;
-  background-position: 0% 8%, 118% 38%, 0 0, 0 0, 0 0;
+  background-size: 200% 200%, auto, auto, auto;
+  background-position: 0% 8%, 0 0, 0 0, 0 0;
   opacity: 0.95;
 }
 
@@ -385,12 +377,10 @@ main {
 }
 
 #tab-hybrid .project-card::before {
-  background:
-    url("assets/botanical-sketch.svg"),
-    radial-gradient(120% 120% at 18% 82%, rgba(var(--bloom-glow-rgb), 0.24), transparent 70%);
+  background: radial-gradient(120% 120% at 18% 82%, rgba(var(--bloom-glow-rgb), 0.24), transparent 70%);
   background-repeat: no-repeat;
-  background-size: 520px auto, 160% 160%;
-  background-position: right -160px top -40px, 0 0;
+  background-size: 160% 160%;
+  background-position: 0 0;
   mix-blend-mode: soft-light;
   opacity: 0.6;
 }
@@ -1114,12 +1104,10 @@ dialog::backdrop {
   content: "";
   position: absolute;
   inset: 0;
-  background:
-    radial-gradient(160% 140% at 12% 14%, rgba(var(--bloom-glow-rgb), 0.2), transparent 62%),
-    url("assets/botanical-sketch.svg");
+  background: radial-gradient(160% 140% at 12% 14%, rgba(var(--bloom-glow-rgb), 0.2), transparent 62%);
   background-repeat: no-repeat;
-  background-size: 220% 220%, 880px auto;
-  background-position: 0 0, right -140px top 20px;
+  background-size: 220% 220%;
+  background-position: 0 0;
   mix-blend-mode: soft-light;
   opacity: 0.45;
   pointer-events: none;
