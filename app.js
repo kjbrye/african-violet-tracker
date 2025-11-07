@@ -6,6 +6,7 @@ const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
 const STORE_KEY = "african_violets_store_v1";
 const PLACEHOLDER_PHOTO = "logo.svg";
 const VIEW_MODE_KEY = "cultivar_view_mode_v1";
+const CLOUD_TABLE = "studio_data";
 const WEEKDAYS_SHORT = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 const MONTH_NAMES = [
   "January","February","March","April","May","June",
@@ -2703,8 +2704,9 @@ function plantPhoto(plant){
 function isMissingTableError(error){
   if(!error) return false;
   if(error.code === "42P01") return true;
+  if(error.code === "PGRST205") return true;
   const msg = String(error.message || "");
-  return /does not exist/i.test(msg);
+  return /does not exist/i.test(msg) || /could not find the table/i.test(msg);
 }
 
 async function ensureSession(){
