@@ -2655,20 +2655,70 @@ async function ensureSession(){
     cloudPull();
   }
 }
+function setAuthExpanded(expanded){
+  const widget = $("#authWidget");
+  const toggle = $("#authToggle");
+  const panel = $("#authPanel");
+  if(!widget || !toggle || !panel) return;
+  widget.classList.toggle("collapsed", !expanded);
+  widget.setAttribute("aria-expanded", expanded ? "true" : "false");
+  toggle.setAttribute("aria-expanded", expanded ? "true" : "false");
+  panel.setAttribute("aria-hidden", expanded ? "false" : "true");
+  if(expanded){
+    const controls = $("#authControls");
+    const focusTarget = controls && !controls.hidden ? $("#authEmail") : $("#btnSignOut");
+    if(focusTarget){
+      try {
+        focusTarget.focus({ preventScroll: true });
+      } catch (_err) {
+        focusTarget.focus();
+      }
+    }
+  }
+}
+const authToggle = $("#authToggle");
+if(authToggle){
+  authToggle.addEventListener("click", () => {
+    const widget = $("#authWidget");
+    const shouldExpand = widget?.classList.contains("collapsed");
+    setAuthExpanded(!!shouldExpand);
+  });
+}
+const authClose = $("#authClose");
+if(authClose){
+  authClose.addEventListener("click", () => setAuthExpanded(false));
+}
+document.addEventListener("click", (evt) => {
+  const widget = $("#authWidget");
+  if(!widget) return;
+  if(widget.contains(evt.target)) return;
+  setAuthExpanded(false);
+});
+document.addEventListener("keydown", (evt) => {
+  if(evt.key === "Escape"){
+    setAuthExpanded(false);
+  }
+});
 function renderAuthUI(session){
   const s = $("#authStatus"), password = $("#authPassword");
   const controls = $("#authControls"), out = $("#btnSignOut");
+  const toggleLabel = $("#authToggleLabel");
+  const toggle = $("#authToggle");
   if(session?.user){
     s.textContent = `Signed in as ${session.user.email}`;
-    if(controls) controls.style.display="none";
-    if(out) out.style.display="";
+    if(controls) controls.hidden = true;
+    if(out) out.hidden = false;
     if(password) password.value="";
+    if(toggleLabel) toggleLabel.textContent = "Account";
+    if(toggle) toggle.setAttribute("aria-label", `Account options for ${session.user.email}`);
   }
   else {
     s.textContent="Not signed in";
-    if(controls) controls.style.display="";
-    if(out) out.style.display="none";
+    if(controls) controls.hidden = false;
+    if(out) out.hidden = true;
     if(password) password.value="";
+    if(toggleLabel) toggleLabel.textContent = "Sign in";
+    if(toggle) toggle.setAttribute("aria-label", "Open sign in panel");
   }
 }
 $("#btnSignIn").addEventListener("click", async (evt)=>{
@@ -2686,6 +2736,7 @@ $("#btnSignIn").addEventListener("click", async (evt)=>{
       return;
     }
     $("#authPassword").value = "";
+    setAuthExpanded(false);
   } finally {
     btn.disabled = false;
   }
@@ -2710,11 +2761,15 @@ $("#btnSignUp").addEventListener("click", async (evt)=>{
     }else{
       alert("Account created. Check your email to confirm your address.");
     }
+    setAuthExpanded(false);
   } finally {
     btn.disabled = false;
   }
 });
-$("#btnSignOut").addEventListener("click", ()=> supabase.auth.signOut());
+$("#btnSignOut").addEventListener("click", ()=> {
+  setAuthExpanded(false);
+  supabase.auth.signOut();
+});
 
 async function cloudPull(){
   if(typeof supabase === "undefined") return;
